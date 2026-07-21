@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: orbitstack
+  labels:
+    app.kubernetes.io/name: orbitstack
+    app.kubernetes.io/part-of: orbitstack-platform

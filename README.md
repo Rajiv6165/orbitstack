@@ -1,6 +1,6 @@
 # OrbitStack 🚀
 
-> A cloud-native, production-ready microservices e-commerce backend built with FastAPI, PostgreSQL, Redis, Docker, and Prometheus.
+> A cloud-native, production-ready microservices e-commerce platform built with FastAPI, PostgreSQL, Redis, React 18, Vite, Three.js, Docker, and Kubernetes.
 
 ---
 
@@ -8,7 +8,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                              CLIENT / API GATEWAY                               │
+│                           INGRESS / CLIENT GATEWAY                              │
 └──────────────┬───────────────────┬────────────────────┬──────────────────────┘
                │                   │                    │
         ┌──────▼──────┐   ┌────────▼───────┐   ┌──────▼──────┐
@@ -48,14 +48,81 @@
 
 ---
 
-## Services
+## Kubernetes Deployment (Minikube / Production)
 
-| Service | Port | Description |
-|---------|------|-------------|
-| `auth-service` | 8001 | JWT issuing (HS256), bcrypt password hashing, user management |
-| `catalog-service` | 8002 | Product & inventory CRUD, stock management |
-| `order-service` | 8003 | Places orders: validates JWT → checks stock → persists order → publishes event |
-| `notification-service` | 8004 | Subscribes to `order.created` Redis channel, logs mock email notifications |
+OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 services (4 backend + 1 frontend) with:
+- **Zero-downtime rolling deploys**: `readinessProbe` and `livenessProbe` on `/health`
+- **Auto-scaling**: `HorizontalPodAutoscaler` for `catalog-service` (CPU-based, 2-10 replicas)
+- **Ingress routing**: Single NGINX Ingress controller routing `/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification` (and `/api/notify`), and `/` to the frontend.
+- **Config & Secret Isolation**: Templated secret configuration with isolated namespace `orbitstack`.
+
+### 1. Prerequisites
+- `minikube` installed (`brew install minikube` or `choco install minikube`)
+- `kubectl` CLI installed
+
+### 2. Enable Minikube Addons
+
+```bash
+minikube start --cpus=4 --memory=8192
+minikube addons enable ingress
+minikube addons enable metrics-server
+```
+
+### 3. Single-Command Deploy
+
+To deploy the entire platform (namespace, configs, secrets, databases, services, HPA, and ingress) with a single command:
+
+```bash
+# Point shell to Minikube's Docker daemon to build images locally
+eval $(minikube docker-env)
+
+# Build all local microservice and frontend images
+docker build -t orbitstack/auth-service:latest ./services/auth-service
+docker build -t orbitstack/catalog-service:latest ./services/catalog-service
+docker build -t orbitstack/order-service:latest ./services/order-service
+docker build -t orbitstack/notification-service:latest ./services/notification-service
+docker build -t orbitstack/frontend:latest ./frontend
+
+# Apply all manifests recursively into the `orbitstack` namespace
+kubectl apply -f k8s/ -R
+```
+
+### 4. Verify Deployments & Health Probes
+
+```bash
+# Watch pods initialize in the orbitstack namespace
+kubectl get pods -n orbitstack -w
+
+# Check Horizontal Pod Autoscaler status
+kubectl get hpa -n orbitstack
+
+# Check Ingress rules and IP
+kubectl get ingress -n orbitstack
+```
+
+### 5. Access the Ingress Gateway
+
+```bash
+# Open minikube tunnel or get IP
+minikube tunnel
+
+# Or add minikube IP to /etc/hosts:
+echo "$(minikube ip) orbitstack.local" | sudo tee -a /etc/hosts
+```
+
+Browse to `http://orbitstack.local` or `http://$(minikube ip)/` to view the frontend, and API endpoints at `http://orbitstack.local/api/catalog/products/`.
+
+---
+
+## Services Overview
+
+| Service | Port | Description | Health Endpoint |
+|---------|------|-------------|-----------------|
+| `auth-service` | 8001 | JWT issuing (HS256), bcrypt password hashing | `/health` |
+| `catalog-service` | 8002 | Product & inventory CRUD, stock management | `/health` |
+| `order-service` | 8003 | Places orders: validates JWT → checks stock → persists → publishes event | `/health` |
+| `notification-service` | 8004 | Subscribes to `order.created` Redis channel, logs email | `/health` |
+| `frontend` | 3000 / 80 | React 18 + Vite + Three.js Storefront & Mission Control | `/health` |
 
 ---
 
@@ -63,6 +130,7 @@
 
 | Layer | Technology |
 |-------|-----------|
+| Frontend | React 18, TypeScript, Vite 8, Tailwind CSS v4, Three.js (R3F), Framer Motion |
 | API Framework | FastAPI 0.111 |
 | ORM | SQLModel (SQLAlchemy + Pydantic) |
 | Database | PostgreSQL 16 |
@@ -70,126 +138,26 @@
 | Auth | python-jose (JWT) + passlib/bcrypt |
 | Messaging | Redis 7 pub/sub |
 | Observability | prometheus-fastapi-instrumentator |
-| Testing | pytest + pytest-asyncio + httpx |
-| Containerisation | Docker (multi-stage) + Docker Compose v3.9 |
+| Orchestration | Docker Compose v3.9 + Kubernetes (k8s) Manifests |
 
 ---
 
-## Project Structure
-
-```
-OrbitStack/
-├── docker-compose.yml          # Full stack orchestration
-├── scripts/
-│   └── init-db.sql             # Creates auth_db, catalog_db, order_db on first boot
-├── README.md
-└── services/
-    ├── auth-service/
-    │   ├── Dockerfile           # Multi-stage build
-    │   ├── requirements.txt
-    │   ├── alembic.ini
-    │   ├── alembic/
-    │   │   ├── env.py
-    │   │   ├── script.py.mako
-    │   │   └── versions/
-    │   │       └── 001_initial.py
-    │   ├── app/
-    │   │   ├── main.py          # FastAPI app entry point
-    │   │   ├── db/session.py    # Engine + session dependency
-    │   │   ├── models/user.py   # SQLModel entity
-    │   │   ├── schemas/auth.py  # Pydantic request/response schemas
-    │   │   ├── routers/auth.py  # HTTP route handlers
-    │   │   └── services/auth_service.py  # Business logic
-    │   └── tests/
-    │       ├── conftest.py
-    │       └── test_auth.py
-    ├── catalog-service/         # Same clean-arch layout
-    │   └── ...
-    ├── order-service/           # Same + Redis publish
-    │   └── ...
-    └── notification-service/   # No DB; asyncio Redis subscriber
-        └── ...
-```
-
----
-
-## Quick Start
-
-### Prerequisites
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Compose)
-
-### Run the Full Stack
+## Local Development (Docker Compose)
 
 ```bash
-# Clone / enter the project
-cd OrbitStack
-
-# Build images and start all services
+# Start all microservices, databases, and frontend
 docker-compose up --build
 
-# (Background mode)
-docker-compose up --build -d
-```
-
-### Verify all services are healthy
-
-```bash
-curl http://localhost:8001/health   # auth-service
-curl http://localhost:8002/health   # catalog-service
-curl http://localhost:8003/health   # order-service
-curl http://localhost:8004/health   # notification-service
-```
-
-### End-to-End Walkthrough
-
-```bash
-# 1. Register a user
-curl -X POST http://localhost:8001/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "strongpass"}'
-# → {"access_token": "<JWT>", "token_type": "bearer"}
-
-# 2. Create a product (via catalog-service)
-curl -X POST http://localhost:8002/products/ \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Laptop", "sku": "LAPTOP-001", "price": 999.99, "stock": 50}'
-
-# 3. Place an order (via order-service) — include JWT from step 1
-curl -X POST http://localhost:8003/orders/ \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <JWT>" \
-  -d '{"product_id": 1, "quantity": 2}'
-# → Notification service logs a mock email to stdout
-```
-
----
-
-## Prometheus Metrics
-
-Every service exposes `/metrics` in Prometheus format:
-
-```
-http://localhost:8001/metrics   # auth-service
-http://localhost:8002/metrics   # catalog-service
-http://localhost:8003/metrics   # order-service
-http://localhost:8004/metrics   # notification-service
+# Open frontend in browser
+open http://localhost:3000  # or dev server http://localhost:5173
 ```
 
 ---
 
 ## Running Tests Locally
 
-Tests run without Docker using SQLite in-memory. Cross-service HTTP calls and Redis are mocked.
-
 ```bash
-# Install dependencies (example for auth-service)
-cd services/auth-service
-pip install -r requirements.txt
-
-# Run tests
-pytest tests/ -v
-
-# Run all services' tests from root (PowerShell)
+# Run tests for all services (PowerShell)
 foreach ($svc in @("auth-service","catalog-service","order-service","notification-service")) {
   Write-Host "=== $svc ===" -ForegroundColor Cyan
   Push-Location "services/$svc"
@@ -197,61 +165,6 @@ foreach ($svc in @("auth-service","catalog-service","order-service","notificatio
   Pop-Location
 }
 ```
-
----
-
-## Environment Variables Reference
-
-### auth-service
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./auth.db` | PostgreSQL connection string |
-| `SECRET_KEY` | `changeme-in-production` | JWT signing secret — **change this!** |
-| `ALGORITHM` | `HS256` | JWT algorithm |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Token TTL in minutes |
-
-### catalog-service
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./catalog.db` | PostgreSQL connection string |
-
-### order-service
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `sqlite:///./order.db` | PostgreSQL connection string |
-| `AUTH_SERVICE_URL` | `http://auth-service:8000` | Internal URL of auth-service |
-| `CATALOG_SERVICE_URL` | `http://catalog-service:8000` | Internal URL of catalog-service |
-| `REDIS_URL` | `redis://redis:6379` | Redis connection string |
-
-### notification-service
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `REDIS_URL` | `redis://redis:6379` | Redis connection string |
-
----
-
-## API Reference
-
-Each service auto-generates interactive API docs:
-
-| Service | Swagger UI | ReDoc |
-|---------|-----------|-------|
-| auth | http://localhost:8001/docs | http://localhost:8001/redoc |
-| catalog | http://localhost:8002/docs | http://localhost:8002/redoc |
-| order | http://localhost:8003/docs | http://localhost:8003/redoc |
-| notification | http://localhost:8004/docs | http://localhost:8004/redoc |
-
----
-
-## Production Notes
-
-> [!CAUTION]
-> Before deploying, rotate `SECRET_KEY` in `docker-compose.yml` (or inject via a secrets manager such as AWS Secrets Manager / HashiCorp Vault).
-
-- **Database isolation**: Each service owns its own PostgreSQL database (`auth_db`, `catalog_db`, `order_db`). Never share tables between services.
-- **Redis events are best-effort**: If Redis is unavailable when an order is placed, the order is still persisted. The notification subscriber will reconnect automatically with exponential back-off.
-- **Auth tokens expire** after 60 minutes by default — configure `ACCESS_TOKEN_EXPIRE_MINUTES`.
-- **Add an API Gateway** (Traefik, Kong, or AWS API GW) in front of all services in production to handle routing, rate limiting, and TLS termination.
 
 ---
 

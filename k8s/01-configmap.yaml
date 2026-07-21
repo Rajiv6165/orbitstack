@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orbitstack-config
+  namespace: orbitstack
+  labels:
+    app.kubernetes.io/name: orbitstack-config
+    app.kubernetes.io/part-of: orbitstack-platform
+data:
+  # General Service Endpoints (Internal Cluster DNS)
+  AUTH_SERVICE_URL: "http://auth-service.orbitstack.svc.cluster.local:8000"
+  CATALOG_SERVICE_URL: "http://catalog-service.orbitstack.svc.cluster.local:8000"
+  REDIS_URL: "redis://redis.orbitstack.svc.cluster.local:6379"
+  
+  # Auth Configuration
+  ALGORITHM: "HS256"
+  ACCESS_TOKEN_EXPIRE_MINUTES: "60"
+
+  # Database Hosts
+  POSTGRES_HOST: "postgres.orbitstack.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_USER: "postgres"
+  POSTGRES_DB: "postgres"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init-script
+  namespace: orbitstack
+  labels:
+    app.kubernetes.io/name: postgres-init-script
+    app.kubernetes.io/part-of: orbitstack-platform
+data:
+  init-db.sql: |
+    -- OrbitStack — PostgreSQL Initialisation
+    CREATE DATABASE auth_db;
+    CREATE DATABASE catalog_db;
+    CREATE DATABASE order_db;
