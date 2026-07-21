@@ -1,0 +1,332 @@
+/* ─── Font imports ───────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@import "tailwindcss";
+
+/* ─── Theme (Tailwind v4 CSS-first) ──────────────────────────────────────── */
+@theme {
+  /* ── Fonts ── */
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Base surface (space navy — never pure black) ── */
+  --color-base:         #070c14;
+  --color-base-1:       #0c1220;
+  --color-base-2:       #101827;
+  --color-base-3:       #16202f;
+  --color-base-overlay: #1a2a3d;
+
+  /* ── Border scale ── */
+  --color-border-dim:    #172133;
+  --color-border:        #1e2d42;
+  --color-border-bright: #263851;
+
+  /* ── Primary — cooler indigo (more sophisticated than Tailwind indigo-500) ── */
+  --color-primary-50:  #eef0ff;
+  --color-primary-100: #dde2fe;
+  --color-primary-200: #c3cbfc;
+  --color-primary-300: #9da9f8;
+  --color-primary-400: #7b88f5;
+  --color-primary-500: #5b6cf5;
+  --color-primary-600: #4a57e0;
+  --color-primary-700: #3b45c4;
+  --color-primary-800: #2f38a0;
+  --color-primary-900: #272f7e;
+  --color-primary-950: #171c50;
+
+  /* ── Accent — teal (Linear/Vercel vocabulary) ── */
+  --color-accent-50:  #edfcfb;
+  --color-accent-100: #d0f7f5;
+  --color-accent-200: #a5eeea;
+  --color-accent-300: #6ddfd9;
+  --color-accent-400: #38c8c1;
+  --color-accent-500: #14b8a6;
+  --color-accent-600: #0d9b8a;
+  --color-accent-700: #0d7d70;
+  --color-accent-800: #0e635a;
+  --color-accent-900: #10524a;
+  --color-accent-950: #03302d;
+
+  /* ── Semantic ── */
+  --color-positive: #22c55e;
+  --color-warning:  #f59e0b;
+  --color-negative: #ef4444;
+
+  /* ── Text scale ── */
+  --color-text-1: #dde3ef;
+  --color-text-2: #8b9ab8;
+  --color-text-3: #4d5e7a;
+  --color-text-4: #2d3d56;
+
+  /* ── Legacy color aliases (for existing components) ── */
+  --color-space-950: var(--color-base);
+  --color-space-900: var(--color-base);
+  --color-space-850: var(--color-base-1);
+  --color-space-800: var(--color-base-2);
+  --color-space-700: var(--color-base-3);
+  --color-orbital-400: var(--color-primary-400);
+  --color-orbital-500: var(--color-primary-500);
+  --color-orbital-600: var(--color-primary-600);
+  --color-orbital-900: var(--color-primary-900);
+  --color-orbital-950: var(--color-primary-950);
+  --color-nebula-400: var(--color-accent-400);
+  --color-nebula-500: var(--color-accent-500);
+  --color-comet-400: var(--color-positive);
+  --color-comet-500: var(--color-positive);
+  --color-surface: var(--color-base-1);
+  --color-surface-elevated: var(--color-base-2);
+  --color-surface-overlay: var(--color-base-overlay);
+  --color-border-subtle: var(--color-border);
+
+  /* ── Shadows ── */
+  --shadow-sm:           0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --shadow-DEFAULT:      0 4px 16px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.25);
+  --shadow-md:           0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg:           0 16px 56px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.35);
+  --shadow-xl:           0 24px 80px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.4);
+  --shadow-glow-sm:      0 0 12px rgba(91,108,245,0.35);
+  --shadow-glow-primary: 0 0 24px rgba(91,108,245,0.45), 0 0 64px rgba(91,108,245,0.15);
+  --shadow-glow-accent:  0 0 24px rgba(20,184,166,0.45), 0 0 64px rgba(20,184,166,0.15);
+  --shadow-glow-orbital: 0 0 20px rgba(91,108,245,0.4), 0 0 60px rgba(91,108,245,0.15);
+  --shadow-glow-nebula:  0 0 20px rgba(20,184,166,0.4), 0 0 60px rgba(20,184,166,0.15);
+  --shadow-glow-comet:   0 0 20px rgba(34,197,94,0.4), 0 0 60px rgba(34,197,94,0.15);
+  --shadow-card:         0 4px 24px rgba(0,0,0,0.4), 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-card-hover:   0 8px 40px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.4);
+
+  /* ── Keyframe animations ── */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.7; filter: brightness(1.2); }
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-10px); }
+  }
+  @keyframes fade-up {
+    0%   { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scale-in {
+    0%   { opacity: 0; transform: scale(0.94); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes slide-right {
+    0%   { transform: translateX(110%); }
+    100% { transform: translateX(0); }
+  }
+  @keyframes orbit {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes ping-slow {
+    0%        { transform: scale(1); opacity: 0.6; }
+    75%, 100% { transform: scale(1.8); opacity: 0; }
+  }
+  @keyframes beam-travel {
+    0%   { stroke-dashoffset: 1; }
+    100% { stroke-dashoffset: 0; }
+  }
+
+  --animate-shimmer:    shimmer 1.8s infinite linear;
+  --animate-pulse-glow: pulse-glow 2.5s ease-in-out infinite;
+  --animate-float:      float 6s ease-in-out infinite;
+  --animate-fade-up:    fade-up 0.4s cubic-bezier(0.23,1,0.32,1) both;
+  --animate-scale-in:   scale-in 0.2s cubic-bezier(0.23,1,0.32,1) both;
+  --animate-slide-right:slide-right 0.35s cubic-bezier(0.23,1,0.32,1) both;
+  --animate-orbit:      orbit 12s linear infinite;
+  --animate-ping-slow:  ping-slow 2s cubic-bezier(0,0,0.2,1) infinite;
+}
+
+/* ─── Base layer ────────────────────────────────────────────────────────── */
+@layer base {
+  /* Skip to content for a11y */
+  .skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    z-index: 9999;
+    padding: 0.5rem 1rem;
+    background: var(--color-primary-500);
+    color: #fff;
+    border-radius: 0 0 6px 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: top 0.1s;
+  }
+  .skip-link:focus { top: 0; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-base);
+    color: var(--color-text-1);
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    line-height: 1.5;
+    position: relative;
+  }
+
+  /* Grain / noise texture overlay — subtle, deliberate */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 9998;
+    pointer-events: none;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+  }
+
+  /* Display font for all headings */
+  h1, h2, h3 { font-family: 'Syne', system-ui, sans-serif; }
+  h4, h5, h6 { font-family: 'Inter', system-ui, sans-serif; }
+
+  /* Restrained scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-bright); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-text-3); }
+
+  ::selection { background: rgba(91,108,245,0.25); color: var(--color-text-1); }
+
+  /* Focus — visible ring, always offset, primary color */
+  *:focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Remove default focus on mouse click, keep for keyboard */
+  *:focus:not(:focus-visible) { outline: none; }
+}
+
+/* ─── Component layer ────────────────────────────────────────────────────── */
+@layer components {
+
+  /* ── Card / glass surface ── */
+  /* Used sparingly: overlays (palette, drawers), not every card */
+  .glass {
+    background: rgba(12, 18, 32, 0.82);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+  /* Standard card — solid surface, no glass */
+  .card {
+    background: var(--color-base-1);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-DEFAULT);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .card:hover {
+    border-color: var(--color-border-bright);
+    box-shadow: var(--shadow-md);
+  }
+  /* Alias for existing components */
+  .glass-card {
+    background: rgba(12, 18, 32, 0.82);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  /* ── Typography utilities ── */
+  .text-display { font-family: 'Syne', system-ui, sans-serif; }
+  .text-mono    { font-family: 'JetBrains Mono', monospace; }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--color-primary-300) 0%, var(--color-primary-500) 45%, var(--color-accent-400) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .gradient-text-orbital {
+    background: linear-gradient(to right, var(--color-primary-400), var(--color-primary-300));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Background utilities ── */
+  .bg-gradient-orbital {
+    background: linear-gradient(135deg, var(--color-primary-600) 0%, var(--color-primary-500) 100%);
+  }
+  .bg-gradient-accent {
+    background: linear-gradient(135deg, var(--color-accent-600) 0%, var(--color-accent-500) 100%);
+  }
+  .bg-gradient-glow {
+    background: radial-gradient(ellipse 80% 60% at 50% 40%, rgba(91,108,245,0.12) 0%, transparent 70%);
+  }
+
+  /* Subtle grid texture — background only, not card surfaces */
+  .bg-grid {
+    background-image:
+      linear-gradient(rgba(91,108,245,0.03) 1px, transparent 1px),
+      linear-gradient(to right, rgba(91,108,245,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .bg-stars {
+    background-image:
+      radial-gradient(ellipse 60% 50% at 20% 30%, rgba(91,108,245,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 50% 50% at 80% 70%, rgba(20,184,166,0.05) 0%, transparent 55%);
+  }
+
+  /* ── Skeleton ── */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-base-2) 0%,
+      var(--color-base-3) 50%,
+      var(--color-base-2) 100%
+    );
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+    border-radius: 6px;
+  }
+
+  /* ── Metric card (dashboard) ── */
+  .metric-card {
+    background: var(--color-base-1);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .metric-card:hover {
+    border-color: rgba(91,108,245,0.3);
+    box-shadow: var(--shadow-glow-sm);
+  }
+
+  /* ── Shadow utilities ── */
+  .shadow-glow-orbital { box-shadow: var(--shadow-glow-orbital); }
+  .shadow-glow-nebula  { box-shadow: var(--shadow-glow-nebula); }
+  .shadow-glow-comet   { box-shadow: var(--shadow-glow-comet); }
+  .shadow-glow-sm      { box-shadow: var(--shadow-glow-sm); }
+  .shadow-glow-primary { box-shadow: var(--shadow-glow-primary); }
+  .shadow-glow-accent  { box-shadow: var(--shadow-glow-accent); }
+  .shadow-card         { box-shadow: var(--shadow-card); }
+  .shadow-card-hover   { box-shadow: var(--shadow-card-hover); }
+
+  /* ── Status dots ── */
+  .dot-healthy  { background: var(--color-positive); }
+  .dot-degraded { background: var(--color-warning); }
+  .dot-down     { background: var(--color-negative); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--color-border-dim); }
+}

@@ -116,6 +116,22 @@ services:
       - orbitstack
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: orbitstack-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+      - notification-service
+    networks:
+      - orbitstack
+    restart: unless-stopped
+
 # ─────────────────────────────────────────────────────────────
 # Volumes & Networks
 # ─────────────────────────────────────────────────────────────
