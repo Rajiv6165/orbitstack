@@ -1,6 +1,6 @@
 # OrbitStack 🚀
 
-> A cloud-native, production-ready microservices e-commerce platform built with FastAPI, PostgreSQL, Redis, React 18, Vite, Three.js, Docker, and Kubernetes.
+> A cloud-native, production-ready microservices e-commerce platform built with FastAPI, PostgreSQL, Redis, React 18, Vite, Three.js, Docker, Kubernetes, and Terraform.
 
 ---
 
@@ -15,40 +15,69 @@
         │ auth-service│   │catalog-service │   │order-service│
         │  :8001      │   │    :8002       │   │   :8003     │
         │─────────────│   │────────────────│   │─────────────│
-        │ POST /auth/ │   │ POST /products/│   │ POST /orders│
-        │   register  │   │ GET  /products/│   │  (validates │
-        │ POST /auth/ │   │ GET  /products/│   │   JWT via   │
-        │   login     │   │   {id}         │   │auth-service,│
-        │ POST /auth/ │   │ PATCH /products│   │checks stock │
-        │   validate  │   │   /{id}/stock  │   │via catalog, │
-        └──────┬──────┘   └────────┬───────┘   │publishes    │
-               │                   │            │ Redis event)│
-        ┌──────▼──────┐   ┌────────▼───────┐   └──────┬──────┘
-        │  PostgreSQL │   │  PostgreSQL    │          │
-        │  (auth_db)  │   │ (catalog_db)   │          │
-        └─────────────┘   └────────────────┘   ┌──────▼──────┐
-                                                │  PostgreSQL │
-                                                │  (order_db) │
-                                                └──────┬──────┘
-                                                       │
-                                              ┌────────▼────────┐
-                                              │      Redis      │
-                                              │  pub/sub channel│
-                                              │  order.created  │
-                                              └────────┬────────┘
-                                                       │
-                                         ┌─────────────▼────────────┐
-                                         │  notification-service    │
-                                         │         :8004            │
-                                         │  Subscribes to Redis,    │
-                                         │  logs mock email per     │
-                                         │  order.created event     │
-                                         └──────────────────────────┘
+        │ POST /auth/ │   │ POST /products/│   │ POST /products/│
+        │   register  │   │ GET  /products/│   │   {id}      │
+        │ POST /auth/ │   │ PATCH /products│   │ POST /orders│
+        │   login     │   │   /{id}/stock  │   │             │
+        └──────┬──────┘   └────────┬───────┘   └──────┬──────┘
+               │                   │                  │
+        ┌──────▼──────┐   ┌────────▼───────┐   ┌──────▼──────┐
+        │  PostgreSQL │   │  PostgreSQL    │   │  PostgreSQL │
+        │  (auth_db)  │   │ (catalog_db)   │   │  (order_db) │
+        └─────────────┘   └────────────────┘   └──────┬──────┘
+                                                      │
+                                             ┌────────▼────────┐
+                                             │      Redis      │
+                                             │  pub/sub channel│
+                                             └────────┬────────┘
+                                                      │
+                                        ┌─────────────▼────────────┐
+                                        │  notification-service    │
+                                        │         :8004            │
+                                        └──────────────────────────┘
 ```
 
 ---
 
-## Kubernetes Deployment (Minikube / Production)
+## Infrastructure as Code (Terraform in `/terraform`)
+
+OrbitStack provides declarative AWS infrastructure in `/terraform` using **k3s on EC2** to avoid the high fixed cost of managed EKS control planes ($73/month control plane fee alone).
+
+### 💰 Cost Comparison & Teardown
+
+| Architecture | Hourly Cost | Monthly Cost (24/7) | Ideal For |
+|--------------|-------------|---------------------|-----------|
+| **OrbitStack k3s (t3.medium EC2)** | **~$0.0416 / hr** | **~$30.00 / mo** | Live Demos, Portfolio, Staging |
+| **AWS EKS + Nodes** | ~$0.2000 / hr | ~$145.00 / mo | Multi-Team Enterprise Production |
+
+> [!TIP]
+> **Destroy when not demoing**: Run `terraform destroy` when you are done presenting. Spin it back up in ~3 minutes with `terraform apply`.
+
+### Provisioning Workflow
+
+```bash
+cd terraform
+
+# 1. Initialize Terraform provider and modules
+terraform init
+
+# 2. Review infrastructure plan
+terraform plan
+
+# 3. Provision AWS VPC, Subnets, Security Groups, IAM Roles, S3 State, & k3s EC2 Node
+terraform apply
+
+# 4. Fetch k3s kubeconfig for local kubectl control
+scp -i <your-key.pem> ubuntu@$(terraform output -raw k3s_node_public_ip):/etc/rancher/k3s/k3s.yaml ~/.kube/config
+sed -i '' "s/127.0.0.1/$(terraform output -raw k3s_node_public_ip)/g" ~/.kube/config
+
+# 5. Teardown infrastructure to stop billing
+terraform destroy
+```
+
+---
+
+## Kubernetes Deployment (`/k8s`)
 
 OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 services (4 backend + 1 frontend) with:
 - **Zero-downtime rolling deploys**: `readinessProbe` and `livenessProbe` on `/health`
@@ -56,61 +85,29 @@ OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 se
 - **Ingress routing**: Single NGINX Ingress controller routing `/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification` (and `/api/notify`), and `/` to the frontend.
 - **Config & Secret Isolation**: Templated secret configuration with isolated namespace `orbitstack`.
 
-### 1. Prerequisites
-- `minikube` installed (`brew install minikube` or `choco install minikube`)
-- `kubectl` CLI installed
-
-### 2. Enable Minikube Addons
+### Quick Minikube Deploy
 
 ```bash
+# Start minikube with ingress enabled
 minikube start --cpus=4 --memory=8192
 minikube addons enable ingress
 minikube addons enable metrics-server
-```
 
-### 3. Single-Command Deploy
-
-To deploy the entire platform (namespace, configs, secrets, databases, services, HPA, and ingress) with a single command:
-
-```bash
-# Point shell to Minikube's Docker daemon to build images locally
+# Build images in minikube's Docker daemon
 eval $(minikube docker-env)
-
-# Build all local microservice and frontend images
 docker build -t orbitstack/auth-service:latest ./services/auth-service
 docker build -t orbitstack/catalog-service:latest ./services/catalog-service
 docker build -t orbitstack/order-service:latest ./services/order-service
 docker build -t orbitstack/notification-service:latest ./services/notification-service
 docker build -t orbitstack/frontend:latest ./frontend
 
-# Apply all manifests recursively into the `orbitstack` namespace
+# Apply all manifests with single command
 kubectl apply -f k8s/ -R
-```
 
-### 4. Verify Deployments & Health Probes
-
-```bash
-# Watch pods initialize in the orbitstack namespace
+# Verify pods & HPA
 kubectl get pods -n orbitstack -w
-
-# Check Horizontal Pod Autoscaler status
 kubectl get hpa -n orbitstack
-
-# Check Ingress rules and IP
-kubectl get ingress -n orbitstack
 ```
-
-### 5. Access the Ingress Gateway
-
-```bash
-# Open minikube tunnel or get IP
-minikube tunnel
-
-# Or add minikube IP to /etc/hosts:
-echo "$(minikube ip) orbitstack.local" | sudo tee -a /etc/hosts
-```
-
-Browse to `http://orbitstack.local` or `http://$(minikube ip)/` to view the frontend, and API endpoints at `http://orbitstack.local/api/catalog/products/`.
 
 ---
 
@@ -130,40 +127,25 @@ Browse to `http://orbitstack.local` or `http://$(minikube ip)/` to view the fron
 
 | Layer | Technology |
 |-------|-----------|
+| IaC | Terraform 1.5+ (AWS VPC, Subnets, SG, IAM, S3 Backend, k3s EC2) |
+| Container Orchestration | Kubernetes (k8s) Manifests + HPA + Ingress + minikube |
 | Frontend | React 18, TypeScript, Vite 8, Tailwind CSS v4, Three.js (R3F), Framer Motion |
 | API Framework | FastAPI 0.111 |
 | ORM | SQLModel (SQLAlchemy + Pydantic) |
 | Database | PostgreSQL 16 |
-| Migrations | Alembic |
-| Auth | python-jose (JWT) + passlib/bcrypt |
 | Messaging | Redis 7 pub/sub |
 | Observability | prometheus-fastapi-instrumentator |
-| Orchestration | Docker Compose v3.9 + Kubernetes (k8s) Manifests |
 
 ---
 
 ## Local Development (Docker Compose)
 
 ```bash
-# Start all microservices, databases, and frontend
+# Start all microservices, databases, and frontend locally
 docker-compose up --build
 
-# Open frontend in browser
-open http://localhost:3000  # or dev server http://localhost:5173
-```
-
----
-
-## Running Tests Locally
-
-```bash
-# Run tests for all services (PowerShell)
-foreach ($svc in @("auth-service","catalog-service","order-service","notification-service")) {
-  Write-Host "=== $svc ===" -ForegroundColor Cyan
-  Push-Location "services/$svc"
-  pytest tests/ -v
-  Pop-Location
-}
+# Open storefront
+open http://localhost:3000
 ```
 
 ---
