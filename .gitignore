@@ -44,6 +44,8 @@ docker-compose.local.yml
 !.env.example
 *.pem
 *.key
+k8s/02-secret.yaml
+!k8s/02-secret.yaml.template
 
 # ── Editor / OS ───────────────────────────────────────────────────────────────
 .vscode/
