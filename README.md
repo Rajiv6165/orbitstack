@@ -1,5 +1,8 @@
 # OrbitStack 🚀
 
+[![CI](https://github.com/Rajiv6165/orbitstack/actions/workflows/ci.yml/badge.svg)](https://github.com/Rajiv6165/orbitstack/actions/workflows/ci.yml)
+[![Deploy](https://github.com/Rajiv6165/orbitstack/actions/workflows/deploy.yml/badge.svg)](https://github.com/Rajiv6165/orbitstack/actions/workflows/deploy.yml)
+
 > A cloud-native, production-ready microservices e-commerce platform built with FastAPI, PostgreSQL, Redis, React 18, Vite, Three.js, Docker, Kubernetes, and Terraform.
 
 ---

@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  changes:
+    name: Detect Changed Components
+    runs-on: ubuntu-latest
+    outputs:
+      auth-service: ${{ steps.filter.outputs.auth-service }}
+      catalog-service: ${{ steps.filter.outputs.catalog-service }}
+      notification-service: ${{ steps.filter.outputs.notification-service }}
+      order-service: ${{ steps.filter.outputs.order-service }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            auth-service:
+              - 'services/auth-service/**'
+            catalog-service:
+              - 'services/catalog-service/**'
+            notification-service:
+              - 'services/notification-service/**'
+            order-service:
+              - 'services/order-service/**'
+            frontend:
+              - 'frontend/**'
+
+  test-backend:
+    name: Test ${{ matrix.service }}
+    needs: changes
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            path: services/auth-service
+            should_run: ${{ needs.changes.outputs.auth-service }}
+          - service: catalog-service
+            path: services/catalog-service
+            should_run: ${{ needs.changes.outputs.catalog-service }}
+          - service: notification-service
+            path: services/notification-service
+            should_run: ${{ needs.changes.outputs.notification-service }}
+          - service: order-service
+            path: services/order-service
+            should_run: ${{ needs.changes.outputs.order-service }}
+    runs-on: ubuntu-latest
+    if: ${{ matrix.should_run == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: ${{ matrix.path }}/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ${{ matrix.path }}/requirements.txt
+
+      - name: Run pytest
+        run: |
+          cd ${{ matrix.path }}
+          pytest
+
+  test-frontend:
+    name: Lint & Build Frontend
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run lint
+        run: |
+          cd frontend
+          npm run lint
+
+      - name: Run build
+        run: |
+          cd frontend
+          npm run build
