@@ -7,46 +7,142 @@
 
 ---
 
-## Architecture
+## 📚 Table of Contents
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           INGRESS / CLIENT GATEWAY                              │
-└──────────────┬───────────────────┬────────────────────┬──────────────────────┘
-               │                   │                    │
-        ┌──────▼──────┐   ┌────────▼───────┐   ┌──────▼──────┐
-        │ auth-service│   │catalog-service │   │order-service│
-        │  :8001      │   │    :8002       │   │   :8003     │
-        │─────────────│   │────────────────│   │─────────────│
-        │ POST /auth/ │   │ POST /products/│   │ POST /products/│
-        │   register  │   │ GET  /products/│   │   {id}      │
-        │ POST /auth/ │   │ PATCH /products│   │ POST /orders│
-        │   login     │   │   /{id}/stock  │   │             │
-        └──────┬──────┘   └────────┬───────┘   └──────┬──────┘
-               │                   │                  │
-        ┌──────▼──────┐   ┌────────▼───────┐   ┌──────▼──────┐
-        │  PostgreSQL │   │  PostgreSQL    │   │  PostgreSQL │
-        │  (auth_db)  │   │ (catalog_db)   │   │  (order_db) │
-        └─────────────┘   └────────────────┘   └──────┬──────┘
-                                                      │
-                                             ┌────────▼────────┐
-                                             │      Redis      │
-                                             │  pub/sub channel│
-                                             └────────┬────────┘
-                                                      │
-                                        ┌─────────────▼────────────┐
-                                        │  notification-service    │
-                                        │         :8004            │
-                                        └──────────────────────────┘
+- [🎬 Live Demo](#-live-demo)
+- [🏛️ System Architecture](#️-system-architecture)
+- [🔄 Order Placement Sequence Flow](#-order-placement-sequence-flow)
+- [💰 Infrastructure as Code (Terraform)](#-infrastructure-as-code-terraform-in-terraform)
+- [☸️ Kubernetes Deployment (`/k8s`)](#-kubernetes-deployment-k8s)
+- [📊 Cluster Observability & Monitoring (`/monitoring`)](#-cluster-observability--monitoring-monitoring)
+- [📦 Services Overview](#-services-overview)
+- [🛠️ Technology Stack](#️-technology-stack)
+- [💻 Local Development (Docker Compose)](#-local-development-docker-compose)
+- [📄 License](#-license)
+
+---
+
+## 🎬 Live Demo
+
+| 3D Storefront Hero | Mission Control Walkthrough |
+| :---: | :---: |
+| ![3D Storefront Hero Demo](docs/assets/demo-hero.gif) | ![Mission Control Walkthrough](docs/assets/demo-mission-control.gif) |
+| *Interactive 3D component topology & live ordering* | *Real-time metrics, node graph, & system topology* |
+
+> *Note: Place recorded walkthrough GIFs in `docs/assets/demo-hero.gif` and `docs/assets/demo-mission-control.gif`.*
+
+---
+
+## 🏛️ System Architecture
+
+OrbitStack is engineered with a **database-per-service** pattern and **event-driven asynchronous messaging**. Full design details are documented in [`docs/architecture.md`](file:///c:/Users/rajiv/OneDrive/Desktop/Projects/Main%20Projects/Orbitstack/docs/architecture.md).
+
+```mermaid
+flowchart TD
+    subgraph External["Client & Gateway Layer"]
+        Client["Client Browser / Mobile"]
+        Ingress["NGINX Ingress Controller (Port 80/443)"]
+    end
+
+    subgraph Presentation["Frontend Layer"]
+        Frontend["frontend (React 18 + Vite)\nPort 3000 / 80"]
+    end
+
+    subgraph Services["Microservices Layer"]
+        AuthSvc["auth-service (FastAPI)\nPort 8001"]
+        CatalogSvc["catalog-service (FastAPI)\nPort 8002"]
+        OrderSvc["order-service (FastAPI)\nPort 8003"]
+        NotifySvc["notification-service (FastAPI)\nPort 8004"]
+    end
+
+    subgraph Persistence["Data & Messaging Layer"]
+        AuthDB[("PostgreSQL\n(auth_db)")]
+        CatalogDB[("PostgreSQL\n(catalog_db)")]
+        OrderDB[("PostgreSQL\n(order_db)")]
+        RedisDB[("Redis 7\n(Pub/Sub Channel)")]
+    end
+
+    %% Client and Ingress Connections
+    Client -->|HTTP / HTTPS| Ingress
+    Ingress -->|/| Frontend
+    Ingress -->|/api/auth| AuthSvc
+    Ingress -->|/api/catalog| CatalogSvc
+    Ingress -->|/api/orders| OrderSvc
+    Ingress -->|/api/notification| NotifySvc
+
+    %% Service to Database Connections
+    AuthSvc -->|SQLModel / asyncpg| AuthDB
+    CatalogSvc -->|SQLModel / asyncpg| CatalogDB
+    OrderSvc -->|SQLModel / asyncpg| OrderDB
+
+    %% Inter-Service & Event Communications
+    OrderSvc -->|POST /auth/validate| AuthSvc
+    OrderSvc -->|GET & PATCH /products| CatalogSvc
+    OrderSvc -->|PUBLISH order.created| RedisDB
+    RedisDB -->|SUBSCRIBE order.created| NotifySvc
 ```
 
 ---
 
-## Infrastructure as Code (Terraform in `/terraform`)
+## 🔄 Order Placement Sequence Flow
+
+When a client places an order, `order-service` orchestrates JWT validation with `auth-service`, verifies and decrements stock with `catalog-service`, commits the order record, and emits an asynchronous `order.created` event over Redis to `notification-service`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Ingress as NGINX Ingress
+    participant OrderSvc as order-service
+    participant AuthSvc as auth-service
+    participant CatalogSvc as catalog-service
+    participant OrderDB as PostgreSQL (order_db)
+    participant Redis as Redis Pub/Sub
+    participant NotifySvc as notification-service
+
+    Client->>Ingress: POST /api/orders (Authorization: Bearer <token>)
+    Ingress->>OrderSvc: POST /orders (headers & payload)
+    
+    rect rgb(240, 248, 255)
+        note right of OrderSvc: Step 1: JWT Validation
+        OrderSvc->>AuthSvc: POST /auth/validate { token }
+        AuthSvc-->>OrderSvc: 200 OK { valid: true, email: user@domain.com }
+    end
+
+    rect rgb(255, 250, 240)
+        note right of OrderSvc: Step 2: Stock Check & Reserve
+        OrderSvc->>CatalogSvc: GET /products/{id}
+        CatalogSvc-->>OrderSvc: 200 OK { stock: 10, price: 29.99 }
+        OrderSvc->>CatalogSvc: PATCH /products/{id}/stock { quantity: -qty }
+        CatalogSvc-->>OrderSvc: 200 OK { stock: 10 - qty }
+    end
+
+    rect rgb(245, 255, 245)
+        note right of OrderSvc: Step 3: Persist Order
+        OrderSvc->>OrderDB: INSERT INTO order (product_id, qty, price, status)
+        OrderDB-->>OrderSvc: Commit Successful (order_id: #1042)
+    end
+
+    rect rgb(255, 240, 245)
+        note right of OrderSvc: Step 4: Event Publication
+        OrderSvc->>Redis: PUBLISH order.created { order_id, email, total }
+        OrderSvc-->>Ingress: 201 Created { id: 1042, status: "confirmed" }
+        Ingress-->>Client: 201 Created { id: 1042, status: "confirmed" }
+    end
+
+    par Asynchronous Notification Processing
+        Redis-->>NotifySvc: Message Event: order.created
+        note right of NotifySvc: Process notification & log email dispatch
+    end
+```
+
+---
+
+## 💰 Infrastructure as Code (Terraform in `/terraform`)
 
 OrbitStack provides declarative AWS infrastructure in `/terraform` using **k3s on EC2** to avoid the high fixed cost of managed EKS control planes ($73/month control plane fee alone).
 
-### 💰 Cost Comparison & Teardown
+### Cost Comparison & Teardown
 
 | Architecture | Hourly Cost | Monthly Cost (24/7) | Ideal For |
 |--------------|-------------|---------------------|-----------|
@@ -80,7 +176,7 @@ terraform destroy
 
 ---
 
-## Kubernetes Deployment (`/k8s`)
+## ☸️ Kubernetes Deployment (`/k8s`)
 
 OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 services (4 backend + 1 frontend) with:
 - **Zero-downtime rolling deploys**: `readinessProbe` and `livenessProbe` on `/health`
@@ -114,19 +210,7 @@ kubectl get hpa -n orbitstack
 
 ---
 
-## Services Overview
-
-| Service | Port | Description | Health Endpoint |
-|---------|------|-------------|-----------------|
-| `auth-service` | 8001 | JWT issuing (HS256), bcrypt password hashing | `/health` |
-| `catalog-service` | 8002 | Product & inventory CRUD, stock management | `/health` |
-| `order-service` | 8003 | Places orders: validates JWT → checks stock → persists → publishes event | `/health` |
-| `notification-service` | 8004 | Subscribes to `order.created` Redis channel, logs email | `/health` |
-| `frontend` | 3000 / 80 | React 18 + Vite + Three.js Storefront & Mission Control | `/health` |
-
----
-
-## Cluster Observability & Monitoring (`/monitoring`)
+## 📊 Cluster Observability & Monitoring (`/monitoring`)
 
 OrbitStack includes a production monitoring stack powered by **kube-prometheus-stack** (Prometheus, Grafana, and Alertmanager) with pre-configured rules and custom dashboards.
 
@@ -183,7 +267,19 @@ for: 5m
 
 ---
 
-## Technology Stack
+## 📦 Services Overview
+
+| Service | Port | Description | Health Endpoint |
+|---------|------|-------------|-----------------|
+| `auth-service` | 8001 | JWT issuing (HS256), bcrypt password hashing | `/health` |
+| `catalog-service` | 8002 | Product & inventory CRUD, stock management | `/health` |
+| `order-service` | 8003 | Places orders: validates JWT → checks stock → persists → publishes event | `/health` |
+| `notification-service` | 8004 | Subscribes to `order.created` Redis channel, logs email | `/health` |
+| `frontend` | 3000 / 80 | React 18 + Vite + Three.js Storefront & Mission Control | `/health` |
+
+---
+
+## 🛠️ Technology Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -198,7 +294,7 @@ for: 5m
 
 ---
 
-## Local Development (Docker Compose)
+## 💻 Local Development (Docker Compose)
 
 ```bash
 # Start all microservices, databases, and frontend locally
@@ -210,6 +306,6 @@ open http://localhost:3000
 
 ---
 
-## License
+## 📄 License
 
 MIT
