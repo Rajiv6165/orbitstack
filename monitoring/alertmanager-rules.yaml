@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: orbitstack-alerts
+  namespace: orbitstack
+  labels:
+    role: alert-rules
+    app.kubernetes.io/name: orbitstack-alerts
+    app.kubernetes.io/part-of: orbitstack-platform
+spec:
+  groups:
+    - name: orbitstack.rules
+      rules:
+        - alert: HighServiceErrorRate
+          expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) by (app) / sum(rate(http_requests_total[5m])) by (app)) * 100 > 5
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "High HTTP error rate on service '{{ $labels.app }}'"
+            description: "Service '{{ $labels.app }}' error rate is {{ $value | printf \"%.2f\" }}% over the last 5 minutes (exceeds 5% threshold)."

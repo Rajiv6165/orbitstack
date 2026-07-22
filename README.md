@@ -126,6 +126,63 @@ kubectl get hpa -n orbitstack
 
 ---
 
+## Cluster Observability & Monitoring (`/monitoring`)
+
+OrbitStack includes a production monitoring stack powered by **kube-prometheus-stack** (Prometheus, Grafana, and Alertmanager) with pre-configured rules and custom dashboards.
+
+### 1. Install kube-prometheus-stack via Helm
+
+```bash
+# Add prometheus-community helm repository
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Install kube-prometheus-stack with OrbitStack values
+helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  -f monitoring/values.yaml
+
+# Apply standalone Alertmanager PrometheusRule CRD
+kubectl apply -f monitoring/alertmanager-rules.yaml
+```
+
+### 2. Access Grafana
+
+```bash
+# Port-forward Grafana service
+kubectl port-forward svc/kube-prometheus-stack-grafana 3000:80 -n monitoring
+```
+- **URL**: `http://localhost:3000`
+- **Username**: `admin`
+- **Password**: `admin` (configured in `monitoring/values.yaml`)
+
+### 3. Import Custom Grafana Dashboard
+
+1. Log into Grafana at `http://localhost:3000`.
+2. Navigate to **Dashboards** → **Import** (or `+` menu → **Import**).
+3. Click **Upload dashboard JSON file** and select [`monitoring/grafana-dashboard.json`](file:///c:/Users/rajiv/OneDrive/Desktop/Projects/Main%20Projects/Orbitstack/monitoring/grafana-dashboard.json).
+4. Select `Prometheus` as the datasource and click **Import**.
+
+**Dashboard Panels Included**:
+- **Per-Service Request Rate**: Live throughput (`req/sec`) per backend microservice.
+- **Per-Service p95 Latency**: 95th percentile HTTP response latency (`ms`).
+- **Per-Service Error Rate**: Percentage of HTTP 5xx errors per service.
+- **Pod CPU Usage**: Active CPU core usage per pod.
+- **Pod Memory Usage**: Active memory footprint (`MiB`) per pod.
+
+### 4. Alertmanager Rules
+
+The monitoring stack includes an automated Alertmanager rule (`HighServiceErrorRate`):
+- **Condition**: Triggers when any backend service's HTTP 5xx error rate exceeds **5%** over a **5-minute window**.
+- **Rule Definition**: [`monitoring/alertmanager-rules.yaml`](file:///c:/Users/rajiv/OneDrive/Desktop/Projects/Main%20Projects/Orbitstack/monitoring/alertmanager-rules.yaml)
+```yaml
+expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) by (app) / sum(rate(http_requests_total[5m])) by (app)) * 100 > 5
+for: 5m
+```
+
+---
+
 ## Technology Stack
 
 | Layer | Technology |
