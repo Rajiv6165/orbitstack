@@ -18,7 +18,7 @@
 - [📦 Services Overview](#-services-overview)
 - [🔌 API Reference & Rate Limits](#-api-reference--rate-limits)
 - [🛠️ Technology Stack](#-technology-stack)
-- [💻 Local Development (Docker Compose)](#-local-development-docker-compose)
+- [🚀 Quickstart & Local Development (Docker Compose)](#-quickstart--local-development-docker-compose)
 - [📄 License](#-license)
 
 ---
@@ -409,15 +409,25 @@ OrbitStack's NGINX Ingress Controller enforces IP-based rate limiting using `ngi
 
 ---
 
-## 💻 Local Development (Docker Compose)
+## 🚀 Quickstart & Local Development (Docker Compose)
+
+### ⚡ Quickstart
+
+Get OrbitStack microservices, databases, and frontend up and running locally:
 
 ```bash
-# Start all microservices, databases, and frontend locally
-docker-compose up --build
+# 1. Start all microservices, databases, and frontend locally
+docker-compose up -d --build
 
-# Open storefront
+# 2. Populate catalog-service with 20 realistic demo products (idempotent / safe to re-run)
+python scripts/seed_demo_data.py
+
+# 3. Open storefront in your browser
 open http://localhost:3000
 ```
+
+> [!NOTE]
+> `python scripts/seed_demo_data.py` populates `catalog-service` with 20 realistic products (name, description, price, stock, sku) across 5 categories so the storefront displays a populated catalog on first run/demo. It is idempotent and safe to re-run.
 
 ### 🧪 End-to-End Integration Testing (`docker-compose.test.yml`)
 
