@@ -15,10 +15,25 @@ async def lifespan(app: FastAPI):
     # shutdown — nothing to clean up
 
 
+tags_metadata = [
+    {
+        "name": "auth",
+        "description": "Authentication management: User registration, login, password hashing, and JWT issuance/validation.",
+    },
+    {
+        "name": "ops",
+        "description": "Operational and health check endpoints.",
+    },
+]
+
 app = FastAPI(
-    title="Auth Service",
-    description="JWT issuing / validation + user management",
+    title="Auth Service API",
+    description=(
+        "**OrbitStack Auth Service**\n\n"
+        "Provides user authentication, secure bcrypt password hashing, and HS256 JWT access token generation and validation."
+    ),
     version="1.0.0",
+    openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 
@@ -29,6 +44,21 @@ Instrumentator().instrument(app).expose(app)
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
 
-@app.get("/health", tags=["ops"])
+@app.get(
+    "/health",
+    tags=["ops"],
+    summary="Health check endpoint",
+    description="Returns operational status of the Auth Service.",
+    responses={
+        200: {
+            "description": "Service is healthy.",
+            "content": {
+                "application/json": {
+                    "example": {"status": "ok", "service": "auth-service"}
+                }
+            },
+        }
+    },
+)
 def health():
     return {"status": "ok", "service": "auth-service"}

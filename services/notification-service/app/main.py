@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.schemas.notification import NotificationListResponse
 from app.services.subscriber import received_events, subscribe_and_listen
 
 logging.basicConfig(
@@ -26,21 +27,63 @@ async def lifespan(app: FastAPI):
         pass
 
 
+tags_metadata = [
+    {
+        "name": "notifications",
+        "description": "Notification subscriber and event processing history endpoints.",
+    },
+    {
+        "name": "ops",
+        "description": "Operational and health check endpoints.",
+    },
+]
+
 app = FastAPI(
-    title="Notification Service",
-    description="Subscribes to Redis order.created events and sends mock email notifications",
+    title="Notification Service API",
+    description=(
+        "**OrbitStack Notification Service**\n\n"
+        "Subscribes asynchronously to Redis `order.created` Pub/Sub channels and dispatches simulated email notifications."
+    ),
     version="1.0.0",
+    openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 
 Instrumentator().instrument(app).expose(app)
 
 
-@app.get("/health", tags=["ops"])
+@app.get(
+    "/health",
+    tags=["ops"],
+    summary="Health check endpoint",
+    description="Returns operational status of the Notification Service.",
+    responses={
+        200: {
+            "description": "Service is healthy.",
+            "content": {
+                "application/json": {
+                    "example": {"status": "ok", "service": "notification-service"}
+                }
+            },
+        }
+    },
+)
 def health():
     return {"status": "ok", "service": "notification-service"}
 
 
-@app.get("/notifications", tags=["notifications"])
+@app.get(
+    "/notifications",
+    response_model=NotificationListResponse,
+    tags=["notifications"],
+    summary="List received event notifications",
+    description="Retrieves a list of all order notification events received by the Redis Pub/Sub background listener.",
+    responses={
+        200: {
+            "description": "List of received notifications retrieved successfully.",
+            "model": NotificationListResponse,
+        }
+    },
+)
 def get_notifications():
     return {"notifications": received_events}

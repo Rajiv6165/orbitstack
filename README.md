@@ -282,6 +282,8 @@ for: 5m
 
 ## 🔌 API Reference & Rate Limits
 
+For complete endpoint documentation, interactive Swagger UI links, and cURL examples, see [`API_REFERENCE.md`](file:///c:/Users/rajiv/OneDrive/Desktop/Projects/Main%20Projects/Orbitstack/API_REFERENCE.md).
+
 OrbitStack's NGINX Ingress Controller enforces IP-based rate limiting using `nginx.ingress.kubernetes.io/limit-rpm` annotations to defend against brute-force credential attacks and service overload.
 
 ### 🛡️ Ingress Rate Limiting Rules
