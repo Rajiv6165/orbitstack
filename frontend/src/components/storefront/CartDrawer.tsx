@@ -3,6 +3,8 @@ import { X, ShoppingCart, Minus, Plus, Trash2, ArrowRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useCartStore } from '@/store/cart'
 import { Button } from '@/components/ui/Button'
+import { ImageWithSkeleton } from '@/components/ui/ImageWithSkeleton'
+import { getProductImage } from '@/lib/productImages'
 import { formatCurrency } from '@/lib/utils'
 
 export function CartDrawer() {
@@ -39,12 +41,12 @@ export function CartDrawer() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-border-subtle">
               <div className="flex items-center gap-3">
-                <ShoppingCart className="w-5 h-5 text-orbital-400" />
+                <ShoppingCart className="w-5 h-5 text-primary-400" />
                 <h2 className="font-semibold text-white">
                   Cart
                 </h2>
                 {count > 0 && (
-                  <span className="bg-orbital-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                  <span className="bg-primary-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                     {count}
                   </span>
                 )}
@@ -75,63 +77,71 @@ export function CartDrawer() {
                     </Button>
                   </motion.div>
                 ) : (
-                  items.map((item) => (
-                    <motion.div
-                      key={item.product.id}
-                      layout
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20, height: 0 }}
-                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                      className="flex gap-4 py-4 border-b border-border-subtle last:border-0"
-                    >
-                      {/* Product visual */}
-                      <div className="w-16 h-16 rounded-lg bg-surface-elevated border border-border-subtle flex items-center justify-center shrink-0">
-                        <ShoppingCart className="w-6 h-6 text-orbital-500/60" />
-                      </div>
+                  items.map((item) => {
+                    const imgMeta = getProductImage(item.product.sku, item.product.name, item.product.id)
+                    return (
+                      <motion.div
+                        key={item.product.id}
+                        layout
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 20, height: 0 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                        className="flex gap-4 py-4 border-b border-border-subtle last:border-0"
+                      >
+                        {/* Product visual thumbnail */}
+                        <div className="w-16 h-16 rounded-lg overflow-hidden border border-border-subtle shrink-0">
+                          <ImageWithSkeleton
+                            src={imgMeta.url}
+                            alt={item.product.name}
+                            aspectRatio="h-16 w-16"
+                            showAttribution={false}
+                          />
+                        </div>
 
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-100 text-sm truncate">{item.product.name}</p>
-                        <p className="text-xs text-slate-500 mb-2">{item.product.sku}</p>
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-100 text-sm truncate">{item.product.name}</p>
+                          <p className="text-xs text-slate-500 mb-2 font-mono">{item.product.sku}</p>
 
-                        <div className="flex items-center justify-between">
-                          {/* Quantity */}
-                          <div className="flex items-center gap-2 bg-surface-elevated rounded-lg border border-border-subtle px-2 py-1">
-                            <button
-                              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                              className="text-slate-500 hover:text-white transition-colors"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="text-sm font-medium text-slate-100 w-6 text-center">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() =>
-                                updateQuantity(item.product.id, Math.min(item.quantity + 1, item.product.stock))
-                              }
-                              className="text-slate-500 hover:text-white transition-colors"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
+                          <div className="flex items-center justify-between">
+                            {/* Quantity */}
+                            <div className="flex items-center gap-2 bg-surface-elevated rounded-lg border border-border-subtle px-2 py-1">
+                              <button
+                                onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                                className="text-slate-500 hover:text-white transition-colors"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="text-sm font-medium text-slate-100 w-6 text-center">
+                                {item.quantity}
+                              </span>
+                              <button
+                                onClick={() =>
+                                  updateQuantity(item.product.id, Math.min(item.quantity + 1, item.product.stock))
+                                }
+                                className="text-slate-500 hover:text-white transition-colors"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
 
-                          <div className="flex items-center gap-3">
-                            <span className="font-semibold text-white text-sm">
-                              {formatCurrency(item.product.price * item.quantity)}
-                            </span>
-                            <button
-                              onClick={() => removeItem(item.product.id)}
-                              className="text-slate-600 hover:text-red-400 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-3">
+                              <span className="font-semibold text-white text-sm">
+                                {formatCurrency(item.product.price * item.quantity)}
+                              </span>
+                              <button
+                                onClick={() => removeItem(item.product.id)}
+                                className="text-slate-600 hover:text-red-400 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))
+                      </motion.div>
+                    )
+                  })
                 )}
               </AnimatePresence>
             </div>

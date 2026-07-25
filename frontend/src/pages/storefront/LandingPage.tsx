@@ -1,7 +1,21 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useState, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useInView } from 'framer-motion'
-import { ArrowRight, Zap, Shield, BarChart3, Bell, Package, GitBranch, ExternalLink } from 'lucide-react'
+import {
+  ArrowRight,
+  Zap,
+  Shield,
+  BarChart3,
+  Bell,
+  Package,
+  GitBranch,
+  Layers,
+  ShieldCheck,
+  DollarSign,
+  CheckCircle2,
+  Sparkles,
+  Cpu,
+} from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PageTransition } from '@/components/layout/PageTransition'
 
@@ -39,15 +53,15 @@ function FeatureCard({
         className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-all duration-300 group-hover:scale-110 border"
         style={{ backgroundColor: `${color}15`, borderColor: `${color}30` }}
       >
-        <span style={{ color }}><Icon className="w-5 h-5" /></span>
+        <span style={{ color }}>
+          <Icon className="w-5 h-5" />
+        </span>
       </div>
       <h3 className="font-semibold text-text-1 text-base mb-2 font-display">{title}</h3>
       <p className="text-sm text-text-3 leading-relaxed">{description}</p>
     </motion.div>
   )
 }
-
-import { useRef } from 'react'
 
 const FEATURES = [
   {
@@ -88,9 +102,56 @@ const FEATURES = [
   },
 ]
 
+const WHY_ORBITSTACK_ITEMS = [
+  {
+    icon: Layers,
+    title: 'Independent Microservices Architecture',
+    plainText:
+      'In single monolithic apps, one crash breaks everything. OrbitStack splits User Auth, Catalog, Orders, and Notifications into 4 separate services with isolated databases. Updating one service never brings down the storefront.',
+    techDetails:
+      'Database-per-service pattern (PostgreSQL auth_db, catalog_db, order_db), FastAPI async handlers, and SQLModel ORM.',
+    badge: 'High Reliability',
+    color: '#6366f1',
+  },
+  {
+    icon: Zap,
+    title: 'Lightning Fast Event-Driven Checkout',
+    plainText:
+      'When customers place an order, they receive an instant order confirmation in milliseconds. The system handles confirmation notifications asynchronously in the background so buyer screens never freeze.',
+    techDetails:
+      'Redis 7 Pub/Sub event broadcasting (order.created channel), non-blocking Python background task processing.',
+    badge: 'Low Latency',
+    color: '#10b981',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Auto-Scaling & Brute-Force Defense',
+    plainText:
+      'During high-traffic flash sales, Kubernetes automatically spawns additional catalog servers (up to 10x). NGINX rate-limiting guards authentication endpoints against brute-force password bots.',
+    techDetails:
+      'Kubernetes HorizontalPodAutoscaler (CPU >70%), NGINX Ingress limit-rpm (100 req/min auth, 300 req/min general API).',
+    badge: 'Enterprise Security',
+    color: '#f59e0b',
+  },
+  {
+    icon: DollarSign,
+    title: '90% Reduced Cloud Cost Architecture',
+    plainText:
+      'Standard managed cloud Kubernetes (AWS EKS) costs $145+/month in fixed fees. OrbitStack delivers full enterprise Kubernetes orchestration on AWS EC2 using k3s for ~$30/month.',
+    techDetails:
+      'Infrastructure as Code in Terraform 1.5+, lightweight k3s Kubernetes control plane on AWS EC2.',
+    badge: 'Cost Optimized',
+    color: '#ec4899',
+  },
+]
+
 export function LandingPage() {
   const statsRef = useRef(null)
   const statsInView = useInView(statsRef, { once: true })
+  const whyRef = useRef(null)
+  const whyInView = useInView(whyRef, { once: true, margin: '-80px' })
+
+  const [mode, setMode] = useState<'recruiter' | 'technical'>('recruiter')
 
   return (
     <PageTransition>
@@ -196,12 +257,123 @@ export function LandingPage() {
           </div>
         </section>
 
+        {/* ── Why OrbitStack Section (Recruiter & Skimming Friendly) ── */}
+        <section ref={whyRef} className="py-24 px-4 bg-base-1 relative border-b border-border">
+          <div className="max-w-6xl mx-auto relative z-10">
+            {/* Section Header */}
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-500/10 border border-primary-500/30 text-primary-400 text-xs font-mono font-semibold uppercase tracking-widest mb-4">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Executive Overview</span>
+              </div>
+              <h2 className="text-4xl sm:text-5xl font-extrabold text-text-1 mb-4 font-display">
+                Why <span className="gradient-text">OrbitStack</span>?
+              </h2>
+              <p className="text-text-2 max-w-2xl mx-auto text-base leading-relaxed">
+                Explaining complex enterprise architecture in plain language for non-technical evaluators, recruiters, and engineering leaders.
+              </p>
+
+              {/* View Mode Toggle Switch */}
+              <div className="flex items-center justify-center gap-3 mt-8">
+                <div className="inline-flex p-1 rounded-xl bg-space-900 border border-border-subtle shadow-inner">
+                  <button
+                    id="toggle-recruiter-mode"
+                    onClick={() => setMode('recruiter')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      mode === 'recruiter'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Plain English (Recruiter Summary)
+                  </button>
+                  <button
+                    id="toggle-technical-mode"
+                    onClick={() => setMode('technical')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      mode === 'technical'
+                        ? 'bg-primary-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <Cpu className="w-3.5 h-3.5" />
+                    Technical Specs (Engineer View)
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 4 Core Pillars Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {WHY_ORBITSTACK_ITEMS.map((item, i) => {
+                const Icon = item.icon
+                return (
+                  <motion.div
+                    key={item.title}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={whyInView ? { opacity: 1, y: 0 } : {}}
+                    transition={{ duration: 0.45, delay: i * 0.1, ease: 'easeOut' }}
+                    whileHover={{ y: -4, transition: { type: 'spring', stiffness: 350, damping: 25 } }}
+                    className="glass-card p-7 relative overflow-hidden group hover:border-primary-500/40 transition-all duration-300"
+                  >
+                    {/* Top row */}
+                    <div className="flex items-center justify-between mb-5">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center border shadow-inner"
+                        style={{ backgroundColor: `${item.color}15`, borderColor: `${item.color}35` }}
+                      >
+                        <span style={{ color: item.color }}>
+                          <Icon className="w-6 h-6" />
+                        </span>
+                      </div>
+                      <span
+                        className="text-[11px] font-mono font-semibold px-3 py-1 rounded-full border backdrop-blur-md"
+                        style={{
+                          color: item.color,
+                          backgroundColor: `${item.color}15`,
+                          borderColor: `${item.color}30`,
+                        }}
+                      >
+                        {item.badge}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-xl font-bold text-text-1 mb-3 font-display leading-snug">
+                      {item.title}
+                    </h3>
+
+                    {/* Description based on active mode */}
+                    <div className="min-h-[100px] flex flex-col justify-between">
+                      {mode === 'recruiter' ? (
+                        <p className="text-slate-300 text-sm leading-relaxed font-sans">
+                          {item.plainText}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-slate-400 text-xs font-mono uppercase tracking-wider">
+                            Under The Hood Architecture:
+                          </p>
+                          <p className="text-primary-300 text-sm font-mono bg-space-950/80 p-3 rounded-lg border border-border-subtle">
+                            {item.techDetails}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+
         {/* ── Architecture Grid ─────────────────────────────────── */}
         <section className="py-24 px-4 bg-base relative">
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-16">
               <div className="text-xs font-mono font-semibold uppercase tracking-widest text-primary-400 mb-3">
-                Architecture
+                Microservice Components
               </div>
               <h2 className="text-4xl font-bold text-text-1 mb-4 font-display">
                 Engineered for High Concurrency
