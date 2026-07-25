@@ -1,15 +1,42 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: orbitstack-ingress
+  name: orbitstack-ingress-auth-ratelimit
   namespace: orbitstack
   labels:
-    app.kubernetes.io/name: orbitstack-ingress
+    app.kubernetes.io/name: orbitstack-ingress-auth-ratelimit
     app.kubernetes.io/part-of: orbitstack-platform
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/limit-rpm: "100"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/auth(/|$)((?:auth/)?(?:login|register).*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: auth-service
+                port:
+                  number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orbitstack-ingress-api-ratelimit
+  namespace: orbitstack
+  labels:
+    app.kubernetes.io/name: orbitstack-ingress-api-ratelimit
+    app.kubernetes.io/part-of: orbitstack-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/limit-rpm: "300"
 spec:
   ingressClassName: nginx
   rules:
@@ -50,6 +77,24 @@ spec:
                 name: notification-service
                 port:
                   number: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: orbitstack-ingress-frontend
+  namespace: orbitstack
+  labels:
+    app.kubernetes.io/name: orbitstack-ingress-frontend
+    app.kubernetes.io/part-of: orbitstack-platform
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
           - path: /(.*)
             pathType: ImplementationSpecific
             backend:

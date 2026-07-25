@@ -117,5 +117,5 @@ Each microservice manages its own schema and database (`auth_db`, `catalog_db`, 
 ### Asynchronous Event-Driven Messaging
 Order creation is decoupled from notification delivery. `order-service` publishes an `order.created` event to Redis. `notification-service` consumes events asynchronously, preserving low latency for order execution.
 
-### Unified Ingress Routing
-External traffic is routed through the NGINX Ingress controller using declarative path rules (`/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification`, `/`), providing a single gateway for the entire platform.
+### Unified Ingress Routing & Rate Limiting
+External traffic is routed through the NGINX Ingress controller using declarative path rules (`/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification`, `/`), providing a single gateway for the entire platform. IP-based rate limiting annotations (`nginx.ingress.kubernetes.io/limit-rpm`) protect authentication endpoints (`/api/auth/login`, `/api/auth/register`) at 100 req/min to prevent brute-force attacks, while enforcing a 300 req/min limit on all other `/api/*` routes.

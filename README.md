@@ -16,7 +16,8 @@
 - [☸️ Kubernetes Deployment (`/k8s`)](#-kubernetes-deployment-k8s)
 - [📊 Cluster Observability & Monitoring (`/monitoring`)](#-cluster-observability--monitoring-monitoring)
 - [📦 Services Overview](#-services-overview)
-- [🛠️ Technology Stack](#️-technology-stack)
+- [🔌 API Reference & Rate Limits](#-api-reference--rate-limits)
+- [🛠️ Technology Stack](#-technology-stack)
 - [💻 Local Development (Docker Compose)](#-local-development-docker-compose)
 - [📄 License](#-license)
 
@@ -181,7 +182,7 @@ terraform destroy
 OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 services (4 backend + 1 frontend) with:
 - **Zero-downtime rolling deploys**: `readinessProbe` and `livenessProbe` on `/health`
 - **Auto-scaling**: `HorizontalPodAutoscaler` for `catalog-service` (CPU-based, 2-10 replicas)
-- **Ingress routing**: Single NGINX Ingress controller routing `/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification` (and `/api/notify`), and `/` to the frontend.
+- **Ingress routing & Rate Limiting**: NGINX Ingress controller with IP-based rate limiting (100 req/min on `/api/auth/login` and `/api/auth/register` to prevent brute-force attacks, 300 req/min on all other `/api/*` endpoints).
 - **Config & Secret Isolation**: Templated secret configuration with isolated namespace `orbitstack`.
 
 ### Quick Minikube Deploy
@@ -276,6 +277,82 @@ for: 5m
 | `order-service` | 8003 | Places orders: validates JWT → checks stock → persists → publishes event | `/health` |
 | `notification-service` | 8004 | Subscribes to `order.created` Redis channel, logs email | `/health` |
 | `frontend` | 3000 / 80 | React 18 + Vite + Three.js Storefront & Mission Control | `/health` |
+
+---
+
+## 🔌 API Reference & Rate Limits
+
+OrbitStack's NGINX Ingress Controller enforces IP-based rate limiting using `nginx.ingress.kubernetes.io/limit-rpm` annotations to defend against brute-force credential attacks and service overload.
+
+### 🛡️ Ingress Rate Limiting Rules
+
+| Endpoint Pattern | Purpose | Rate Limit | Ingress Annotation |
+|------------------|---------|------------|--------------------|
+| `/api/auth/login`<br>`/api/auth/register` | Authentication & Account Registration (Brute-Force Protection) | **100 req/min** per IP | `nginx.ingress.kubernetes.io/limit-rpm: "100"` |
+| All other `/api/*` routes | General API endpoints (`catalog`, `orders`, `notification`, `auth/validate`) | **300 req/min** per IP | `nginx.ingress.kubernetes.io/limit-rpm: "300"` |
+
+---
+
+### 🌐 API Endpoints Reference
+
+#### 🔑 Auth Service (`/api/auth`)
+*Ingress Policy: 100 req/min on login & register; 300 req/min on validate.*
+
+- **`POST /api/auth/login`** *(Limit: 100 req/min)*
+  - **Body**: `{ "email": "string", "password": "string" }`
+  - **Response**: `{ "access_token": "string", "token_type": "bearer" }`
+  - **Description**: Authenticates user credentials and issues a JWT token.
+
+- **`POST /api/auth/register`** *(Limit: 100 req/min)*
+  - **Body**: `{ "email": "string", "password": "string" }`
+  - **Response**: `{ "access_token": "string", "token_type": "bearer" }`
+  - **Description**: Registers a new user account in `auth_db` and issues a JWT token.
+
+- **`POST /api/auth/validate`** *(Limit: 300 req/min)*
+  - **Body**: `{ "token": "string" }`
+  - **Response**: `{ "valid": true, "email": "string" }`
+  - **Description**: Internal endpoint called by `order-service` to decode and validate bearer tokens.
+
+#### 📦 Catalog Service (`/api/catalog`)
+*Ingress Policy: 300 req/min per IP.*
+
+- **`GET /api/catalog/products`** *(Limit: 300 req/min)*
+  - **Response**: `Array<Product>`
+  - **Description**: Fetches all available products from `catalog_db`.
+
+- **`GET /api/catalog/products/{product_id}`** *(Limit: 300 req/min)*
+  - **Response**: `Product`
+  - **Description**: Retrieves a single product by ID.
+
+- **`POST /api/catalog/products`** *(Limit: 300 req/min)*
+  - **Body**: `{ "name": "string", "description": "string", "price": float, "stock": int }`
+  - **Response**: `Product`
+  - **Description**: Creates a new product catalog item.
+
+- **`PATCH /api/catalog/products/{product_id}/stock`** *(Limit: 300 req/min)*
+  - **Body**: `{ "quantity": int }` (positive to restock, negative to decrement)
+  - **Response**: `Product`
+  - **Description**: Internal stock adjustment endpoint invoked during order creation.
+
+#### 🛒 Order Service (`/api/orders`)
+*Ingress Policy: 300 req/min per IP.*
+
+- **`POST /api/orders`** *(Limit: 300 req/min)*
+  - **Header**: `Authorization: Bearer <token>`
+  - **Body**: `{ "product_id": int, "quantity": int }`
+  - **Response**: `{ "id": int, "product_id": int, "quantity": int, "total_price": float, "status": "string" }`
+  - **Description**: Places an order: validates token via `auth-service`, checks and reserves stock via `catalog-service`, saves order in `order_db`, and publishes an `order.created` event to Redis.
+
+- **`GET /api/orders/{order_id}`** *(Limit: 300 req/min)*
+  - **Response**: `Order`
+  - **Description**: Retrieves an existing order by ID.
+
+#### 🔔 Notification Service (`/api/notification` / `/api/notify`)
+*Ingress Policy: 300 req/min per IP.*
+
+- **`GET /api/notification/health`** *(Limit: 300 req/min)*
+  - **Response**: `{ "status": "ok", "service": "notification-service" }`
+  - **Description**: Service health check. Background worker listens continuously to Redis `order.created` channel.
 
 ---
 
