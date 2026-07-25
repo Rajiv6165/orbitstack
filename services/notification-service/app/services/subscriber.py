@@ -10,11 +10,14 @@ logger = logging.getLogger("notification-service.subscriber")
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379")
 CHANNEL: str = "order.created"
 
+received_events: list[dict] = []
+
 
 async def _handle_event(raw_data: bytes | str) -> None:
     """Parse and log a mock email notification for an order.created event."""
     try:
         event = json.loads(raw_data)
+        received_events.append(event)
         logger.info(
             "📧  [MOCK EMAIL] Order confirmed!\n"
             "    To      : %s\n"

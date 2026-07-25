@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.services.subscriber import subscribe_and_listen
+from app.services.subscriber import received_events, subscribe_and_listen
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,3 +39,8 @@ Instrumentator().instrument(app).expose(app)
 @app.get("/health", tags=["ops"])
 def health():
     return {"status": "ok", "service": "notification-service"}
+
+
+@app.get("/notifications", tags=["notifications"])
+def get_notifications():
+    return {"notifications": received_events}

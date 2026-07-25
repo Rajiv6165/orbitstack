@@ -381,6 +381,22 @@ docker-compose up --build
 open http://localhost:3000
 ```
 
+### 🧪 End-to-End Integration Testing (`docker-compose.test.yml`)
+
+Run the real end-to-end integration test suite hitting real backend containers:
+
+```bash
+# 1. Spin up backend microservices & infrastructure
+docker compose -f docker-compose.test.yml up -d --build
+
+# 2. Run the E2E order flow integration tests (register -> login -> create product -> place order -> stock check -> notification check)
+pip install -r tests/integration/requirements.txt
+pytest tests/integration/
+
+# 3. Teardown test stack
+docker compose -f docker-compose.test.yml down -v
+```
+
 ---
 
 ## 📄 License
