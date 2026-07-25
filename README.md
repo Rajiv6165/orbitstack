@@ -14,6 +14,7 @@
 - [🔄 Order Placement Sequence Flow](#-order-placement-sequence-flow)
 - [💰 Infrastructure as Code (Terraform)](#-infrastructure-as-code-terraform-in-terraform)
 - [☸️ Kubernetes Deployment (`/k8s`)](#-kubernetes-deployment-k8s)
+- [🛠️ Production Operations Manual (`/docs/operations.md`)](#️-production-operations-manual-docsoperationsmd)
 - [📊 Cluster Observability & Monitoring (`/monitoring`)](#-cluster-observability--monitoring-monitoring)
 - [📦 Services Overview](#-services-overview)
 - [🔌 API Reference & Rate Limits](#-api-reference--rate-limits)
@@ -184,6 +185,9 @@ OrbitStack includes production-grade Kubernetes manifests in `/k8s` for all 5 se
 - **Auto-scaling**: `HorizontalPodAutoscaler` for `catalog-service` (CPU-based, 2-10 replicas)
 - **Ingress routing & Rate Limiting**: NGINX Ingress controller with IP-based rate limiting (100 req/min on `/api/auth/login` and `/api/auth/register` to prevent brute-force attacks, 300 req/min on all other `/api/*` endpoints).
 - **Config & Secret Isolation**: Templated secret configuration with isolated namespace `orbitstack`.
+
+> [!TIP]
+> **Production Operations & Incident Response**: For PostgreSQL backup/restore workflows (`pg_dump` / `psql`), manual service scaling (`kubectl scale`), and incident response runbooks, see [`docs/operations.md`](file:///c:/Users/rajiv/OneDrive/Desktop/Projects/Main%20Projects/Orbitstack/docs/operations.md).
 
 ### Quick Minikube Deploy
 
