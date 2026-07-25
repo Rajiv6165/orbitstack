@@ -119,3 +119,6 @@ Order creation is decoupled from notification delivery. `order-service` publishe
 
 ### Unified Ingress Routing & Rate Limiting
 External traffic is routed through the NGINX Ingress controller using declarative path rules (`/api/auth`, `/api/catalog`, `/api/orders`, `/api/notification`, `/`), providing a single gateway for the entire platform. IP-based rate limiting annotations (`nginx.ingress.kubernetes.io/limit-rpm`) protect authentication endpoints (`/api/auth/login`, `/api/auth/register`) at 100 req/min to prevent brute-force attacks, while enforcing a 300 req/min limit on all other `/api/*` routes.
+
+### Distributed Tracing & Structured JSON Logging
+All 4 microservices produce single-line JSON logs via `python-json-logger`. An `X-Request-ID` correlation header is automatically generated or preserved by `RequestTracingMiddleware` and propagated across inter-service HTTP requests (`order-service` $\rightarrow$ `auth-service`, `catalog-service`) and Redis event payloads (`notification-service`), enabling end-to-end trace visibility for every request.

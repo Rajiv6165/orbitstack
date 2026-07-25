@@ -266,6 +266,42 @@ expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) by (app) / sum(rate(htt
 for: 5m
 ```
 
+### 5. Structured JSON Logging & Distributed Tracing (`X-Request-ID`)
+
+All 4 backend microservices (`auth-service`, `catalog-service`, `order-service`, `notification-service`) emit standardized, single-line structured JSON logs using `python-json-logger` and context-bound request tracing middleware (`RequestTracingMiddleware`).
+
+#### 🔍 End-to-End Tracing Flow
+
+When an order placement request is received by `order-service`, OrbitStack propagates an `X-Request-ID` correlation header across HTTP calls and Redis event payloads:
+
+```
+[Client Request] ───> order-service (Generates / receives X-Request-ID: req-7f8a9b0c)
+                           │
+                           ├── HTTP POST /auth/validate ────────> auth-service (X-Request-ID: req-7f8a9b0c)
+                           ├── HTTP GET & PATCH /products ──────> catalog-service (X-Request-ID: req-7f8a9b0c)
+                           │
+                           └── Redis PUBLISH order.created ─────> notification-service (payload.request_id: req-7f8a9b0c)
+```
+
+#### 📜 Standardized JSON Log Schema Example
+
+```json
+{
+  "timestamp": "2026-07-25T23:00:00Z",
+  "level": "INFO",
+  "logger": "order-service.http",
+  "message": "HTTP Request Completed",
+  "service": "order-service",
+  "request_id": "req-7f8a9b0c1234",
+  "http_method": "POST",
+  "http_path": "/orders/",
+  "status_code": 201,
+  "duration_ms": 45.12
+}
+```
+
+Filtering logs by a single `request_id` allows DevOps and SREs to trace an entire distributed transaction across all 4 microservices in centralized log aggregation platforms (Datadog, Grafana Loki, AWS CloudWatch).
+
 ---
 
 ## 📦 Services Overview

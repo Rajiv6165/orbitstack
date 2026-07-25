@@ -5,13 +5,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from app.core.logging import RequestTracingMiddleware, setup_json_logging
 from app.schemas.notification import NotificationListResponse
 from app.services.subscriber import received_events, subscribe_and_listen
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-)
+# Initialize structured JSON logging
+setup_json_logging(service_name="notification-service")
 
 
 @asynccontextmanager
@@ -48,6 +47,9 @@ app = FastAPI(
     openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
+
+# Add request tracing middleware for X-Request-ID propagation
+app.add_middleware(RequestTracingMiddleware, service_name="notification-service")
 
 Instrumentator().instrument(app).expose(app)
 

@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+import uuid
 
 import httpx
 import redis
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
+from app.core.logging import request_id_var
 from app.models.order import Order
 from app.schemas.order import OrderCreate
 
@@ -29,13 +31,19 @@ async def place_order(session: Session, payload: OrderCreate, token: str) -> Ord
     3. Decrement stock in catalog-service
     4. Persist order record
     5. Publish order.created event to Redis
+
+    Propagates X-Request-ID header across all downstream HTTP calls and Redis Pub/Sub event payloads.
     """
+    request_id = request_id_var.get() or f"req-{uuid.uuid4().hex[:12]}"
+    headers = {"X-Request-ID": request_id}
+
     # ── Step 1: JWT validation ────────────────────────────────────────────────
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             auth_resp = await client.post(
                 f"{AUTH_SERVICE_URL}/auth/validate",
                 json={"token": token},
+                headers=headers,
             )
             auth_resp.raise_for_status()
         except httpx.RequestError as exc:
@@ -57,7 +65,8 @@ async def place_order(session: Session, payload: OrderCreate, token: str) -> Ord
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             product_resp = await client.get(
-                f"{CATALOG_SERVICE_URL}/products/{payload.product_id}"
+                f"{CATALOG_SERVICE_URL}/products/{payload.product_id}",
+                headers=headers,
             )
         except httpx.RequestError as exc:
             logger.error("catalog-service unreachable: %s", exc)
@@ -89,6 +98,7 @@ async def place_order(session: Session, payload: OrderCreate, token: str) -> Ord
         stock_resp = await client.patch(
             f"{CATALOG_SERVICE_URL}/products/{payload.product_id}/stock",
             json={"quantity": -payload.quantity},
+            headers=headers,
         )
         stock_resp.raise_for_status()
 
@@ -106,6 +116,7 @@ async def place_order(session: Session, payload: OrderCreate, token: str) -> Ord
 
     # ── Step 5: Publish event ─────────────────────────────────────────────────
     event = {
+        "request_id": request_id,
         "order_id": order.id,
         "customer_email": customer_email,
         "product_id": payload.product_id,

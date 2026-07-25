@@ -4,6 +4,7 @@ import logging
 import os
 
 import redis.asyncio as aioredis
+from app.core.logging import request_id_var
 
 logger = logging.getLogger("notification-service.subscriber")
 
@@ -18,20 +19,27 @@ async def _handle_event(raw_data: bytes | str) -> None:
     try:
         event = json.loads(raw_data)
         received_events.append(event)
-        logger.info(
-            "📧  [MOCK EMAIL] Order confirmed!\n"
-            "    To      : %s\n"
-            "    Order # : %s\n"
-            "    Product : %s (ID: %s)\n"
-            "    Qty     : %s\n"
-            "    Total   : $%.2f",
-            event.get("customer_email", "unknown"),
-            event.get("order_id", "?"),
-            event.get("product_name", ""),
-            event.get("product_id", "?"),
-            event.get("quantity", "?"),
-            event.get("total_price", 0.0),
-        )
+        req_id = event.get("request_id")
+        token = request_id_var.set(req_id) if req_id else None
+
+        try:
+            logger.info(
+                "📧  [MOCK EMAIL] Order confirmed!\n"
+                "    To      : %s\n"
+                "    Order # : %s\n"
+                "    Product : %s (ID: %s)\n"
+                "    Qty     : %s\n"
+                "    Total   : $%.2f",
+                event.get("customer_email", "unknown"),
+                event.get("order_id", "?"),
+                event.get("product_name", ""),
+                event.get("product_id", "?"),
+                event.get("quantity", "?"),
+                event.get("total_price", 0.0),
+            )
+        finally:
+            if token:
+                request_id_var.reset(token)
     except (json.JSONDecodeError, KeyError) as exc:
         logger.error("Failed to process order.created event: %s | raw=%s", exc, raw_data)
 
