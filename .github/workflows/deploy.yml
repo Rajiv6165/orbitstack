@@ -78,13 +78,16 @@ jobs:
     name: Deploy to k3s Cluster
     needs: build-and-push
     runs-on: ubuntu-latest
+    env:
+      K3S_HOST: ${{ secrets.K3S_HOST }}
+      K3S_SSH_KEY: ${{ secrets.K3S_SSH_KEY }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
       - name: Deploy via SSH to k3s
         uses: appleboy/ssh-action@v1.0.3
-        if: ${{ secrets.K3S_HOST != '' && secrets.K3S_SSH_KEY != '' }}
+        if: ${{ env.K3S_HOST != '' && env.K3S_SSH_KEY != '' }}
         with:
           host: ${{ secrets.K3S_HOST }}
           username: ${{ secrets.K3S_USER || 'ubuntu' }}
