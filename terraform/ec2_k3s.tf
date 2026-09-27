@@ -48,6 +48,10 @@ resource "aws_instance" "k3s_node" {
                 sleep 2
               done
 
+              # Install Sealed Secrets Controller
+              echo "Installing Sealed Secrets controller..."
+              /usr/local/bin/kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/controller.yaml
+
               echo "k3s cluster is online and ready for OrbitStack deployments!"
               EOF
 

@@ -25,6 +25,9 @@ This runbook documents production operations, database backup and recovery proce
   - [Step 2: Inspect Application Logs & Correlation Traces](#step-2-inspect-application-logs--correlation-traces)
   - [Step 3: Analyze Grafana Metrics & Alertmanager Alerts](#step-3-analyze-grafana-metrics--alertmanager-alerts)
   - [Step 4: Emergency Rollback (`kubectl rollout undo`)](#step-4-emergency-rollback-kubectl-rollout-undo)
+- [5. Secrets Management (Sealed Secrets)](#5-secrets-management-sealed-secrets)
+  - [Generating Sealed Secrets](#generating-sealed-secrets)
+  - [Updating Secrets](#updating-secrets)
 
 ---
 
@@ -367,4 +370,47 @@ kubectl get hpa -n orbitstack
 kubectl get pods -n orbitstack
 kubectl logs -n orbitstack -l app=order-service --tail=100 -f
 kubectl rollout undo deployment/order-service -n orbitstack
+
+# ─── SECRETS MANAGEMENT ──────────────────────────────────────────────────────
+kubeseal --format=yaml < my-secret.yaml > 02-sealed-secret.yaml
+kubectl apply -f 02-sealed-secret.yaml
 ```
+
+---
+
+## 5. Secrets Management (Sealed Secrets)
+
+OrbitStack utilizes **Sealed Secrets** by Bitnami to ensure secrets are never stored as plaintext (base64) in the Git repository. The Sealed Secrets Controller is provisioned automatically during k3s cluster initialization (via Terraform user data).
+
+### Generating Sealed Secrets
+
+To encrypt a new secret so it can be safely committed to the repository, you need the `kubeseal` CLI tool.
+
+1. **Install `kubeseal`**:
+   Follow instructions on the [Sealed Secrets GitHub](https://github.com/bitnami-labs/sealed-secrets) to download the CLI.
+
+2. **Create a local plain Secret** (Do NOT commit this file):
+   Create a standard `my-secret.yaml`:
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: orbitstack-secrets
+     namespace: orbitstack
+   type: Opaque
+   stringData:
+     POSTGRES_PASSWORD: "super-secure-password"
+   ```
+
+3. **Seal the Secret**:
+   Ensure you are connected to the cluster (so `kubeseal` can fetch the public key from the controller):
+   ```bash
+   kubeseal --format=yaml < my-secret.yaml > k8s/02-sealed-secret.yaml
+   ```
+
+4. **Clean up**:
+   Delete `my-secret.yaml` immediately.
+
+### Updating Secrets
+
+The Sealed Secrets controller seamlessly decrypts `SealedSecret` resources into regular Kubernetes `Secret` resources. When you `kubectl apply -f k8s/02-sealed-secret.yaml`, the controller updates the underlying `orbitstack-secrets` Secret, and pods will continue to consume it as normal. There is no need for init containers or CSI drivers.
