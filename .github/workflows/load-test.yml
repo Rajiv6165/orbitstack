@@ -1,0 +1,37 @@
+name: Load Test (k6)
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  load-test:
+    name: Run k6 Load Test against Staging (Docker Compose)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Start Staging Stack via Docker Compose
+        run: |
+          docker-compose up -d
+          echo "Waiting for services to become healthy..."
+          timeout 60s bash -c 'while [[ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8001/health)" != "200" ]]; do sleep 2; done'
+          timeout 60s bash -c 'while [[ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8002/health)" != "200" ]]; do sleep 2; done'
+          timeout 60s bash -c 'while [[ "$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8003/health)" != "200" ]]; do sleep 2; done'
+          echo "All core services are up and ready for load!"
+
+      - name: Run k6 Load Test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/load/script.js
+          flags: --out json=results.json
+        env:
+          AUTH_URL: http://localhost:8001
+          CATALOG_URL: http://localhost:8002
+          ORDER_URL: http://localhost:8003
+
+      - name: Tear Down Stack
+        if: always()
+        run: docker-compose down -v
