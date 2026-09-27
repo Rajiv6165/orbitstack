@@ -355,6 +355,27 @@ kubectl rollout status deployment/catalog-service -n orbitstack
 
 ---
 
+### Step 5: Canary Deployment Rollback (`order-service`)
+
+The `order-service` utilizes a Canary deployment strategy where 10% of incoming API traffic is routed to a separate `order-service-canary` deployment. If the canary's error rate spikes or latency increases significantly during an active canary phase:
+
+1. **Halt traffic to the Canary**: Immediately route all traffic back to the stable production deployment by setting the canary weight to 0.
+   ```bash
+   kubectl annotate ingress orbitstack-ingress-order-canary -n orbitstack nginx.ingress.kubernetes.io/canary-weight="0" --overwrite
+   ```
+
+2. **Rollback the Canary Deployment**: Revert the canary deployment to the previous stable image (or simply scale it to 0).
+   ```bash
+   kubectl rollout undo deployment/order-service-canary -n orbitstack
+   ```
+
+3. **Investigate Logs**: Isolate and check the logs of the failing canary pods to diagnose the issue without impacting the main production traffic.
+   ```bash
+   kubectl logs -n orbitstack -l app=order-service-canary --tail=100
+   ```
+
+---
+
 ## 📑 Summary Quick-Reference Command Sheet
 
 ```bash

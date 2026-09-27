@@ -3,6 +3,13 @@ name: Deploy
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      promote_order_canary:
+        description: 'Promote Order Service Canary to Production (Full Rollout)'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -88,12 +95,26 @@ jobs:
 
             kubectl set image deployment/auth-service auth-service=ghcr.io/${REPO_OWNER}/orbitstack-auth-service:${TAG} -n orbitstack
             kubectl set image deployment/catalog-service catalog-service=ghcr.io/${REPO_OWNER}/orbitstack-catalog-service:${TAG} -n orbitstack
-            kubectl set image deployment/order-service order-service=ghcr.io/${REPO_OWNER}/orbitstack-order-service:${TAG} -n orbitstack
+            
+            if [ "${{ github.event.inputs.promote_order_canary }}" == "true" ]; then
+              echo "🚀 Promoting Order Service Canary to Production Deployment..."
+              kubectl set image deployment/order-service order-service=ghcr.io/${REPO_OWNER}/orbitstack-order-service:${TAG} -n orbitstack
+            else
+              echo "🐥 Deploying Order Service to Canary Deployment (10% traffic)..."
+              kubectl set image deployment/order-service-canary order-service=ghcr.io/${REPO_OWNER}/orbitstack-order-service:${TAG} -n orbitstack
+            fi
+            
             kubectl set image deployment/notification-service notification-service=ghcr.io/${REPO_OWNER}/orbitstack-notification-service:${TAG} -n orbitstack
             kubectl set image deployment/frontend frontend=ghcr.io/${REPO_OWNER}/orbitstack-frontend:${TAG} -n orbitstack
 
             kubectl rollout status deployment/auth-service -n orbitstack --timeout=120s
             kubectl rollout status deployment/catalog-service -n orbitstack --timeout=120s
-            kubectl rollout status deployment/order-service -n orbitstack --timeout=120s
+            
+            if [ "${{ github.event.inputs.promote_order_canary }}" == "true" ]; then
+              kubectl rollout status deployment/order-service -n orbitstack --timeout=120s
+            else
+              kubectl rollout status deployment/order-service-canary -n orbitstack --timeout=120s
+            fi
+            
             kubectl rollout status deployment/notification-service -n orbitstack --timeout=120s
             kubectl rollout status deployment/frontend -n orbitstack --timeout=120s
