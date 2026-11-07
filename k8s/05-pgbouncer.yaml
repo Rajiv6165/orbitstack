@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  namespace: orbitstack
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/part-of: orbitstack-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6432
+              name: pgbouncer
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: orbitstack-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: orbitstack-config
+                  key: POSTGRES_HOST
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: orbitstack-config
+                  key: POSTGRES_PORT
+            - name: DB_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: orbitstack-config
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              value: "$(POSTGRES_PASSWORD)"
+            - name: LISTEN_PORT
+              value: "6432"
+            - name: POOL_MODE
+              value: "transaction"
+            - name: MAX_CLIENT_CONN
+              value: "1000"
+            - name: DEFAULT_POOL_SIZE
+              value: "20"
+            - name: MIN_POOL_SIZE
+              value: "5"
+            - name: RESERVE_POOL_SIZE
+              value: "5"
+            - name: SERVER_RESET_QUERY
+              value: "DISCARD ALL"
+            - name: IGNORE_STARTUP_PARAMETERS
+              value: "extra_float_digits"
+            - name: AUTH_TYPE
+              value: "scram-sha-256"
+            - name: DATABASE_URLS
+              value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres.orbitstack.svc.cluster.local:5432/auth_db,postgresql://postgres:$(POSTGRES_PASSWORD)@postgres.orbitstack.svc.cluster.local:5432/catalog_db,postgresql://postgres:$(POSTGRES_PASSWORD)@postgres.orbitstack.svc.cluster.local:5432/order_db,postgresql://postgres:$(POSTGRES_PASSWORD)@postgres.orbitstack.svc.cluster.local:5432/postgres"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -h
+                - 127.0.0.1
+                - -p
+                - "6432"
+                - -U
+                - postgres
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - -h
+                - 127.0.0.1
+                - -p
+                - "6432"
+                - -U
+                - postgres
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  namespace: orbitstack
+  labels:
+    app: pgbouncer
+    app.kubernetes.io/name: pgbouncer
+    app.kubernetes.io/part-of: orbitstack-platform
+spec:
+  ports:
+    - port: 6432
+      targetPort: 6432
+      name: pgbouncer
+    - port: 5432
+      targetPort: 6432
+      name: postgres-compat
+  selector:
+    app: pgbouncer
+

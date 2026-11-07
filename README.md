@@ -57,6 +57,10 @@ flowchart TD
         NotifySvc["notification-service (FastAPI)\nPort 8004"]
     end
 
+    subgraph Pooling["Connection Pooling Layer"]
+        PgBouncer["PgBouncer (Transaction Mode)\nPort 6432"]
+    end
+
     subgraph Persistence["Data & Messaging Layer"]
         AuthDB[("PostgreSQL\n(auth_db)")]
         CatalogDB[("PostgreSQL\n(catalog_db)")]
@@ -72,10 +76,15 @@ flowchart TD
     Ingress -->|/api/orders| OrderSvc
     Ingress -->|/api/notification| NotifySvc
 
-    %% Service to Database Connections
-    AuthSvc -->|SQLModel / asyncpg| AuthDB
-    CatalogSvc -->|SQLModel / asyncpg| CatalogDB
-    OrderSvc -->|SQLModel / asyncpg| OrderDB
+    %% Service to Connection Pooler
+    AuthSvc -->|SQLModel / Port 6432| PgBouncer
+    CatalogSvc -->|SQLModel / Port 6432| PgBouncer
+    OrderSvc -->|SQLModel / Port 6432| PgBouncer
+
+    %% PgBouncer to Backend Databases
+    PgBouncer -->|auth_db / Port 5432| AuthDB
+    PgBouncer -->|catalog_db / Port 5432| CatalogDB
+    PgBouncer -->|order_db / Port 5432| OrderDB
 
     %% Inter-Service & Event Communications
     OrderSvc -->|POST /auth/validate| AuthSvc
@@ -407,6 +416,7 @@ OrbitStack's NGINX Ingress Controller enforces IP-based rate limiting using `ngi
 | Frontend | React 18, TypeScript, Vite 8, Tailwind CSS v4, Three.js (R3F), Framer Motion |
 | API Framework | FastAPI 0.111 |
 | ORM | SQLModel (SQLAlchemy + Pydantic) |
+| Connection Pooler | PgBouncer (Transaction Mode) |
 | Database | PostgreSQL 16 |
 | Messaging | Redis 7 pub/sub |
 | Observability | prometheus-fastapi-instrumentator |

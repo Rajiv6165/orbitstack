@@ -22,6 +22,11 @@ data:
   POSTGRES_USER: "postgres"
   POSTGRES_DB: "postgres"
 
+  # PgBouncer Connection Pooler (Transaction Mode)
+  PGBOUNCER_HOST: "pgbouncer.orbitstack.svc.cluster.local"
+  PGBOUNCER_PORT: "6432"
+  PGBOUNCER_POOL_MODE: "transaction"
+
 ---
 apiVersion: v1
 kind: ConfigMap
