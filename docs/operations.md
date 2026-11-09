@@ -28,6 +28,10 @@ This runbook documents production operations, database backup and recovery proce
 - [5. Secrets Management (Sealed Secrets)](#5-secrets-management-sealed-secrets)
   - [Generating Sealed Secrets](#generating-sealed-secrets)
   - [Updating Secrets](#updating-secrets)
+- [6. PgBouncer Connection Pool Operations](#6-pgbouncer-connection-pool-operations)
+  - [Inspecting Active Pools & Clients](#inspecting-active-pools--clients)
+  - [Common Diagnostic Queries](#common-diagnostic-queries)
+  - [Reloading Configuration & Graceful Restart](#reloading-configuration--graceful-restart)
 
 ---
 
@@ -435,3 +439,60 @@ To encrypt a new secret so it can be safely committed to the repository, you nee
 ### Updating Secrets
 
 The Sealed Secrets controller seamlessly decrypts `SealedSecret` resources into regular Kubernetes `Secret` resources. When you `kubectl apply -f k8s/02-sealed-secret.yaml`, the controller updates the underlying `orbitstack-secrets` Secret, and pods will continue to consume it as normal. There is no need for init containers or CSI drivers.
+
+---
+
+## 6. PgBouncer Connection Pool Operations
+
+PgBouncer serves as the transaction-mode connection pooler for all microservices in the `orbitstack` namespace (`k8s/05-pgbouncer.yaml`).
+
+### Inspecting Active Pools & Clients
+
+Connect to the special PgBouncer administrative virtual database `pgbouncer` via `psql`:
+
+```bash
+# Exec into the PgBouncer pod and access the admin console
+kubectl exec -it -n orbitstack deploy/pgbouncer -- psql -h 127.0.0.1 -p 6432 -U postgres pgbouncer
+```
+
+### Common Diagnostic Queries
+
+Once connected to the `pgbouncer` admin database, execute administrative commands:
+
+```sql
+-- View pool statistics (active/waiting client connections and active/idle server connections)
+SHOW POOLS;
+
+-- View connected client sockets and their active transaction state
+SHOW CLIENTS;
+
+-- View physical server connections established to PostgreSQL backend
+SHOW SERVERS;
+
+-- View aggregated query counts, transaction rates, and byte throughput
+SHOW STATS;
+
+-- View database routing targets and active pool settings
+SHOW DATABASES;
+```
+
+### Interpreting `SHOW POOLS` Columns
+
+| Column | Meaning | Healthy Indicator |
+|--------|---------|-------------------|
+| `cl_active` | Client connections currently executing a transaction | Proportional to live request volume |
+| `cl_waiting` | Client requests queued waiting for a free server connection | Should ideally be `0`. Sustained values $> 0$ indicate backend saturation |
+| `sv_active` | Physical server connections currently reserved for transactions | Under `default_pool_size` (20) |
+| `sv_idle` | Physical server connections ready for immediate checkout | $> 0$ during normal operations |
+| `maxwait` | Maximum seconds the oldest client has been waiting in queue | `0` or $< 1$s. Alerts should trigger if $> 5$s |
+
+### Reloading Configuration & Graceful Restart
+
+```bash
+# Reload PgBouncer configuration without terminating active client connections
+kubectl exec -n orbitstack deploy/pgbouncer -- psql -h 127.0.0.1 -p 6432 -U postgres pgbouncer -c "RELOAD;"
+
+# Graceful rollout restart if upgrading PgBouncer image or altering deployment specs
+kubectl rollout restart deployment/pgbouncer -n orbitstack
+kubectl rollout status deployment/pgbouncer -n orbitstack
+```

@@ -4,12 +4,12 @@ from pydantic import BaseModel, EmailStr, Field
 
 class ErrorResponse(BaseModel):
     """Standardized error response payload."""
-    detail: str = Field(..., example="Invalid credentials or request data.")
+    detail: str = Field(..., json_schema_extra={"example": "Invalid credentials or request data."})
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr = Field(..., example="user@orbitstack.io", description="User's email address")
-    password: str = Field(..., example="SecurePass123!", description="User's password")
+    email: EmailStr = Field(..., description="User's email address", json_schema_extra={"example": "user@orbitstack.io"})
+    password: str = Field(..., max_length=72, description="User's password", json_schema_extra={"example": "SecurePass123!"})
 
     model_config = {
         "json_schema_extra": {
@@ -22,8 +22,8 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr = Field(..., example="user@orbitstack.io", description="Registered email address")
-    password: str = Field(..., example="SecurePass123!", description="User password")
+    email: EmailStr = Field(..., description="Registered email address", json_schema_extra={"example": "user@orbitstack.io"})
+    password: str = Field(..., max_length=72, description="User password", json_schema_extra={"example": "SecurePass123!"})
 
     model_config = {
         "json_schema_extra": {
@@ -36,8 +36,8 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    access_token: str = Field(..., example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", description="JWT bearer access token")
-    token_type: str = Field("bearer", example="bearer", description="Token authorization type")
+    access_token: str = Field(..., description="JWT bearer access token", json_schema_extra={"example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."})
+    token_type: str = Field("bearer", description="Token authorization type", json_schema_extra={"example": "bearer"})
 
     model_config = {
         "json_schema_extra": {
@@ -50,7 +50,7 @@ class TokenResponse(BaseModel):
 
 
 class ValidateRequest(BaseModel):
-    token: str = Field(..., example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...", description="JWT access token string to validate")
+    token: str = Field(..., description="JWT access token string to validate", json_schema_extra={"example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."})
 
     model_config = {
         "json_schema_extra": {
@@ -62,8 +62,8 @@ class ValidateRequest(BaseModel):
 
 
 class ValidateResponse(BaseModel):
-    valid: bool = Field(..., example=True, description="True if token is valid and unexpired")
-    email: Optional[str] = Field(None, example="user@orbitstack.io", description="Email subject extracted from token payload")
+    valid: bool = Field(..., description="True if token is valid and unexpired", json_schema_extra={"example": True})
+    email: Optional[str] = Field(None, description="Email subject extracted from token payload", json_schema_extra={"example": "user@orbitstack.io"})
 
     model_config = {
         "json_schema_extra": {

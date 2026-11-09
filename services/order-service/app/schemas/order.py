@@ -6,12 +6,12 @@ from pydantic import BaseModel, Field
 
 class ErrorResponse(BaseModel):
     """Standardized error response payload."""
-    detail: str = Field(..., example="Invalid token or product stock unavailable.")
+    detail: str = Field(..., json_schema_extra={"example": "Invalid token or product stock unavailable."})
 
 
 class OrderCreate(BaseModel):
-    product_id: int = Field(..., example=1, description="ID of the product to order")
-    quantity: int = Field(..., ge=1, example=2, description="Quantity to purchase (must be at least 1)")
+    product_id: int = Field(..., description="ID of the product to order", json_schema_extra={"example": 1})
+    quantity: int = Field(..., ge=1, description="Quantity to purchase (must be at least 1)", json_schema_extra={"example": 2})
 
     model_config = {
         "json_schema_extra": {
@@ -24,13 +24,13 @@ class OrderCreate(BaseModel):
 
 
 class OrderRead(BaseModel):
-    id: int = Field(..., example=101, description="Unique order ID")
-    product_id: int = Field(..., example=1, description="ID of the ordered product")
-    quantity: int = Field(..., example=2, description="Quantity ordered")
-    customer_email: str = Field(..., example="user@orbitstack.io", description="Customer email retrieved from JWT token")
-    status: str = Field(..., example="confirmed", description="Order confirmation status")
-    total_price: float = Field(..., example=999.98, description="Calculated total order price in USD")
-    created_at: datetime = Field(..., example="2026-07-25T12:00:00Z", description="Timestamp when order was placed")
+    id: int = Field(..., description="Unique order ID", json_schema_extra={"example": 101})
+    product_id: int = Field(..., description="ID of the ordered product", json_schema_extra={"example": 1})
+    quantity: int = Field(..., description="Quantity ordered", json_schema_extra={"example": 2})
+    customer_email: str = Field(..., description="Customer email retrieved from JWT token", json_schema_extra={"example": "user@orbitstack.io"})
+    status: str = Field(..., description="Order confirmation status", json_schema_extra={"example": "confirmed"})
+    total_price: float = Field(..., description="Calculated total order price in USD", json_schema_extra={"example": 999.98})
+    created_at: datetime = Field(..., description="Timestamp when order was placed", json_schema_extra={"example": "2026-07-25T12:00:00Z"})
 
     model_config = {
         "from_attributes": True,

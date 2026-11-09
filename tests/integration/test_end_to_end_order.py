@@ -48,6 +48,7 @@ def test_full_end_to_end_order_flow(service_urls):
         "description": "Next-gen computing core",
         "price": 299.99,
         "stock": initial_stock,
+        "sku": f"SKU-{unique_id}",
     }
     prod_res = client.post(f"{catalog_url}/products/", json=product_payload)
     assert prod_res.status_code == 201, f"Create product failed: {prod_res.text}"

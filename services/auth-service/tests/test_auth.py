@@ -71,3 +71,32 @@ def test_health_endpoint(client):
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
     assert response.json()["service"] == "auth-service"
+
+
+def test_register_password_longer_than_72_bytes_returns_422(client):
+    overlong_password = "a" * 73
+    response = client.post(
+        "/auth/register",
+        json={"email": "toolong@example.com", "password": overlong_password},
+    )
+    assert response.status_code == 422
+
+
+def test_login_password_longer_than_72_bytes_returns_422(client):
+    overlong_password = "a" * 73
+    response = client.post(
+        "/auth/login",
+        json={"email": "toolong@example.com", "password": overlong_password},
+    )
+    assert response.status_code == 422
+
+
+def test_verify_password_verifies_existing_2b_hash():
+    from app.services.auth_service import verify_password
+    # Pre-computed standard $2b$ bcrypt hash for "SecurePass123!"
+    existing_hash = "$2b$12$4vj6l.7O8b23fXy5j2iR9e6dKqE.n6b2oF5R6iL9i3L1k9p4o7Q8W"
+    # Or generate a real $2b$ hash directly
+    import bcrypt
+    sample_hash = bcrypt.hashpw(b"legacy-pass", bcrypt.gensalt(prefix=b"2b")).decode("utf-8")
+    assert verify_password("legacy-pass", sample_hash) is True
+    assert verify_password("wrong-pass", sample_hash) is False

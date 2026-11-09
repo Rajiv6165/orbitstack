@@ -5,15 +5,15 @@ from pydantic import BaseModel, Field
 
 class ErrorResponse(BaseModel):
     """Standardized error response payload."""
-    detail: str = Field(..., example="Product not found or invalid inventory quantity.")
+    detail: str = Field(..., json_schema_extra={"example": "Product not found or invalid inventory quantity."})
 
 
 class ProductCreate(BaseModel):
-    name: str = Field(..., example="Quantum Processor i9", description="Name of the product")
-    description: Optional[str] = Field(None, example="Next-gen 16-core computing processor", description="Product description")
-    price: float = Field(..., gt=0, example=499.99, description="Unit price in USD (must be positive)")
-    stock: int = Field(0, ge=0, example=50, description="Available stock inventory quantity")
-    sku: str = Field(..., example="CPU-QP-001", description="Stock Keeping Unit identifier")
+    name: str = Field(..., description="Name of the product", json_schema_extra={"example": "Quantum Processor i9"})
+    description: Optional[str] = Field(None, description="Product description", json_schema_extra={"example": "Next-gen 16-core computing processor"})
+    price: float = Field(..., gt=0, description="Unit price in USD (must be positive)", json_schema_extra={"example": 499.99})
+    stock: int = Field(0, ge=0, description="Available stock inventory quantity", json_schema_extra={"example": 50})
+    sku: str = Field(..., description="Stock Keeping Unit identifier", json_schema_extra={"example": "CPU-QP-001"})
 
     model_config = {
         "json_schema_extra": {
@@ -29,12 +29,12 @@ class ProductCreate(BaseModel):
 
 
 class ProductRead(BaseModel):
-    id: int = Field(..., example=1, description="Unique product ID")
-    name: str = Field(..., example="Quantum Processor i9", description="Name of the product")
-    description: Optional[str] = Field(None, example="Next-gen 16-core computing processor", description="Product description")
-    price: float = Field(..., example=499.99, description="Unit price in USD")
-    stock: int = Field(..., example=50, description="Current stock quantity")
-    sku: str = Field(..., example="CPU-QP-001", description="Stock Keeping Unit identifier")
+    id: int = Field(..., description="Unique product ID", json_schema_extra={"example": 1})
+    name: str = Field(..., description="Name of the product", json_schema_extra={"example": "Quantum Processor i9"})
+    description: Optional[str] = Field(None, description="Product description", json_schema_extra={"example": "Next-gen 16-core computing processor"})
+    price: float = Field(..., description="Unit price in USD", json_schema_extra={"example": 499.99})
+    stock: int = Field(..., description="Current stock quantity", json_schema_extra={"example": 50})
+    sku: str = Field(..., description="Stock Keeping Unit identifier", json_schema_extra={"example": "CPU-QP-001"})
 
     model_config = {
         "from_attributes": True,
@@ -53,9 +53,9 @@ class ProductRead(BaseModel):
 
 class ProductUpdate(BaseModel):
     """Partial update — all fields optional."""
-    name: Optional[str] = Field(None, example="Quantum Processor i9 Pro")
-    description: Optional[str] = Field(None, example="Updated description")
-    price: Optional[float] = Field(None, example=549.99)
+    name: Optional[str] = Field(None, json_schema_extra={"example": "Quantum Processor i9 Pro"})
+    description: Optional[str] = Field(None, json_schema_extra={"example": "Updated description"})
+    price: Optional[float] = Field(None, json_schema_extra={"example": 549.99})
 
     model_config = {
         "json_schema_extra": {
@@ -73,7 +73,7 @@ class StockAdjust(BaseModel):
     quantity > 0  →  restock
     quantity < 0  →  decrement (used by order-service when order is placed)
     """
-    quantity: int = Field(..., example=-3, description="Quantity adjustment (+ve for restock, -ve for reservation)")
+    quantity: int = Field(..., description="Quantity adjustment (+ve for restock, -ve for reservation)", json_schema_extra={"example": -3})
 
     model_config = {
         "json_schema_extra": {
